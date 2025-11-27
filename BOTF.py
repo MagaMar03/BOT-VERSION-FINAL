@@ -705,6 +705,126 @@ class BotDenunciasSUNAT:
                 "//button[contains(text(),'Grabar')]"
             ],
             "onclick": ["grabar()", "fnGrabar()", "guardar()"]
+        },
+
+        # ─────────────────────────────────────────────────────────────────────────
+        # SECCIÓN 2: ATENCIÓN DE DENUNCIAS
+        # ─────────────────────────────────────────────────────────────────────────
+        "modalidad": {
+            "tipo": "select",
+            "selectores": ["modalidad", "cboModalidad"],
+            "textos_visibles": ["Modalidad Evasión Denunciada", "Modalidad Evasión", "Modalidad", "MODALIDAD"],
+            "xpaths": [
+                "//select[@name='modalidad']",
+                "//select[contains(@id,'modalidad')]",
+                "//td[contains(text(),'Modalidad')]/following::select[1]"
+            ]
+        },
+        "submodalidad": {
+            "tipo": "select",
+            "selectores": ["submodalidad", "cboSubmodalidad"],
+            "textos_visibles": ["Sub Modalidad", "Submodalidad", "SUB MODALIDAD"],
+            "xpaths": [
+                "//select[@name='submodalidad']",
+                "//select[contains(@id,'submodalidad')]",
+                "//td[contains(text(),'Sub Modalidad')]/following::select[1]"
+            ]
+        },
+        "rdoTipo": {
+            "tipo": "radio",
+            "selectores": ["rdoTipo"],
+            "textos_visibles": ["Tipo de Denuncia", "TIPO DE DENUNCIA"],
+            "xpaths": [
+                "//input[@name='rdoTipo'][@value='1']",  # Telefónica
+                "//input[@name='rdoTipo'][@value='2']",  # Verbal
+                "//input[@name='rdoTipo'][@value='3']",  # Escrita
+                "//input[@name='rdoTipo'][@value='4']"   # Formato Electrónico
+            ]
+        },
+        "fecha_sid": {
+            "tipo": "input",
+            "selectores": ["fecha_sid", "fechaSid"],
+            "textos_visibles": ["Fecha SID", "Fecha SID o Control Documentario", "FECHA SID"],
+            "xpaths": [
+                "//input[@name='fecha_sid']",
+                "//input[contains(@name,'fecha')]",
+                "//td[contains(text(),'Fecha SID')]/following::input[1]"
+            ]
+        },
+        "detalle": {
+            "tipo": "textarea",
+            "selectores": ["detalle", "txtDetalle"],
+            "textos_visibles": ["DETALLE DE LA DENUNCIA", "Detalle de la denuncia", "Detalle", "DETALLE"],
+            "xpaths": [
+                "//textarea[@name='detalle']",
+                "//textarea[contains(@name,'detalle')]",
+                "//td[contains(text(),'DETALLE')]/following::textarea[1]"
+            ]
+        },
+        "MesDesde": {
+            "tipo": "select",
+            "selectores": ["MesDesde", "cboMesDesde"],
+            "textos_visibles": ["Del Mes", "Mes Desde", "DEL MES"],
+            "xpaths": [
+                "//select[@name='MesDesde']",
+                "//select[contains(@id,'MesDesde')]",
+                "//td[contains(text(),'Del Mes')]/following::select[1]"
+            ]
+        },
+        "AnioDesde": {
+            "tipo": "select",
+            "selectores": ["AnioDesde", "cboAnioDesde"],
+            "textos_visibles": ["Año", "Del Año", "Año Desde"],
+            "xpaths": [
+                "//select[@name='AnioDesde']",
+                "//select[contains(@id,'AnioDesde')]"
+            ]
+        },
+        "MesHasta": {
+            "tipo": "select",
+            "selectores": ["MesHasta", "cboMesHasta"],
+            "textos_visibles": ["Al Mes", "Mes Hasta", "AL MES"],
+            "xpaths": [
+                "//select[@name='MesHasta']",
+                "//select[contains(@id,'MesHasta')]",
+                "//td[contains(text(),'Al Mes')]/following::select[1]"
+            ]
+        },
+        "AnioHasta": {
+            "tipo": "select",
+            "selectores": ["AnioHasta", "cboAnioHasta"],
+            "textos_visibles": ["Año", "Al Año", "Año Hasta"],
+            "xpaths": [
+                "//select[@name='AnioHasta']",
+                "//select[contains(@id,'AnioHasta')]"
+            ]
+        },
+        "tipoPru": {
+            "tipo": "radio",
+            "selectores": ["tipoPru"],
+            "textos_visibles": ["Con el objetivo que la denuncia", "Pruebas Ofrecidas"],
+            "xpaths": [
+                "//input[@name='tipoPru'][@value='S']",  # Sí
+                "//input[@name='tipoPru'][@value='N']"   # No
+            ]
+        },
+        "elementos": {
+            "tipo": "select_multiple",
+            "selectores": ["elementos", "lstElementos"],
+            "textos_visibles": ["Seleccione la(s) pruebas(a) que puede aportar", "Tipo de Pruebas", "Elementos"],
+            "xpaths": [
+                "//select[@name='elementos']",
+                "//select[@multiple][@name='elementos']"
+            ]
+        },
+        "otros": {
+            "tipo": "input",
+            "selectores": ["otros", "txtOtros"],
+            "textos_visibles": ["Si seleccionó \"Otros, detalle\"", "Otros", "Detalle Otros"],
+            "xpaths": [
+                "//input[@name='otros']",
+                "//td[contains(text(),'Otros')]/following::input[1]"
+            ]
         }
     }
 
@@ -2434,8 +2554,8 @@ class BotDenunciasSUNAT:
 
                 self.log(f"  → Detalle: {valor[:50]}...")
 
-                # MÉTODO ROBUSTO para llenar campo de detalle
-                if not self.llenar_campo_con_espera_robusta("detalle", valor, "input", timeout=15):
+                # MÉTODO ROBUSTO para llenar campo de detalle (TEXTAREA, no INPUT)
+                if not self.llenar_campo_con_espera_robusta("detalle", valor, "textarea", timeout=15):
                     self.log(f"    ⚠️ No se pudo llenar Detalle")
                 time.sleep(0.5)
             
