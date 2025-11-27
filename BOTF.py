@@ -2355,9 +2355,54 @@ class BotDenunciasSUNAT:
             # ═══════════════════════════════════════
             self.log("\n📋 PASO 3/4: Botón Buscar")
 
-            # Ejecutar función JavaScript directamente (método comprobado)
-            self.driver.execute_script("clickbtn_buscar();")
-            self.log("   ✅ Clic en 'Buscar' ejecutado correctamente")
+            # ESTRATEGIA: Ejecutar DIRECTAMENTE la función JavaScript del botón
+            # El clic normal de Selenium no dispara el evento onclick correctamente
+            clic_exitoso = False
+
+            # INTENTO 1: Ejecutar función JavaScript directamente
+            try:
+                self.log("   → Intento 1: Ejecutando función JavaScript clickbtn_buscar()...")
+                self.driver.execute_script("clickbtn_buscar();")
+                self.log("   ✅ Función JavaScript ejecutada correctamente")
+                clic_exitoso = True
+            except Exception as e:
+                self.log(f"   ⚠️ Falló ejecución directa de JS: {str(e)[:50]}")
+
+            # INTENTO 2: Buscar el botón y ejecutar su función onclick
+            if not clic_exitoso:
+                try:
+                    self.log("   → Intento 2: Buscando botón y ejecutando su onclick...")
+                    boton_buscar = self.driver.find_element(By.ID, "buscar")
+                    onclick_func = boton_buscar.get_attribute("onclick")
+                    if onclick_func:
+                        self.driver.execute_script(onclick_func)
+                        self.log("   ✅ Función onclick ejecutada")
+                        clic_exitoso = True
+                except Exception as e:
+                    self.log(f"   ⚠️ Falló ejecución onclick: {str(e)[:50]}")
+
+            # INTENTO 3: Clic con JavaScript en el elemento
+            if not clic_exitoso:
+                try:
+                    self.log("   → Intento 3: Clic JavaScript en elemento...")
+                    boton_buscar = self.driver.find_element(By.ID, "buscar")
+                    self.driver.execute_script("arguments[0].click();", boton_buscar)
+                    self.log("   ✅ Clic JavaScript ejecutado")
+                    clic_exitoso = True
+                except Exception as e:
+                    self.log(f"   ⚠️ Falló clic JS: {str(e)[:50]}")
+
+            # INTENTO 4: Método universal como último recurso
+            if not clic_exitoso:
+                try:
+                    self.log("   → Intento 4: Método universal...")
+                    if self.clic_boton_universal("buscar"):
+                        clic_exitoso = True
+                except:
+                    pass
+
+            if not clic_exitoso:
+                raise Exception("No se pudo hacer clic en botón Buscar después de 4 intentos")
 
             # ESPERAR hasta que se carguen los datos automáticamente
             self.log("   ⏳ Esperando a que se carguen los datos del denunciado...")
@@ -2428,9 +2473,42 @@ class BotDenunciasSUNAT:
             # ═══════════════════════════════════════
             self.log("\n📋 PASO 4/4: Botón Siguiente")
 
-            # Ejecutar función JavaScript directamente (método comprobado)
-            self.driver.execute_script("clickbtn_validar();")
-            self.log("   ✅ Clic en 'Siguiente' ejecutado correctamente")
+            # ESTRATEGIA: Ejecutar DIRECTAMENTE la función JavaScript del botón
+            clic_siguiente_exitoso = False
+
+            # INTENTO 1: Ejecutar función JavaScript directamente
+            try:
+                self.log("   → Intento 1: Ejecutando función JavaScript clickbtn_validar()...")
+                self.driver.execute_script("clickbtn_validar();")
+                self.log("   ✅ Función JavaScript ejecutada correctamente")
+                clic_siguiente_exitoso = True
+            except Exception as e:
+                self.log(f"   ⚠️ Falló ejecución directa de JS: {str(e)[:50]}")
+
+            # INTENTO 2: Buscar el botón y ejecutar su función onclick
+            if not clic_siguiente_exitoso:
+                try:
+                    self.log("   → Intento 2: Buscando botón 'siguiente' y ejecutando onclick...")
+                    boton_siguiente = self.driver.find_element(By.ID, "siguiente")
+                    onclick_func = boton_siguiente.get_attribute("onclick")
+                    if onclick_func:
+                        self.driver.execute_script(onclick_func)
+                        self.log("   ✅ Función onclick ejecutada")
+                        clic_siguiente_exitoso = True
+                except Exception as e:
+                    self.log(f"   ⚠️ Falló ejecución onclick: {str(e)[:50]}")
+
+            # INTENTO 3: Método universal
+            if not clic_siguiente_exitoso:
+                try:
+                    self.log("   → Intento 3: Método universal...")
+                    if self.clic_boton_universal("siguiente"):
+                        clic_siguiente_exitoso = True
+                except:
+                    pass
+
+            if not clic_siguiente_exitoso:
+                raise Exception("No se pudo hacer clic en botón Siguiente después de 3 intentos")
 
             time.sleep(2)
 
@@ -2703,10 +2781,33 @@ class BotDenunciasSUNAT:
                             else:
                                 self.log(f"    ⚠️ No se pudo seleccionar Tipo de Prueba")
             
-            # 17. Botón Siguiente - Método directo (comprobado que funciona)
-            self.log("  → Haciendo clic en 'Siguiente' con JavaScript...")
-            self.driver.execute_script("clickbtn_validar();")
-            self.log("  ✅ Clic en 'Siguiente' exitoso")
+            # 17. Siguiente - Ejecutar JavaScript directamente (MÉTODO QUE FUNCIONA)
+            self.log("  → Clic en 'Siguiente'...")
+
+            clic_siguiente_exitoso = False
+
+            # MÉTODO PRINCIPAL: Ejecutar función JavaScript directamente (✅ COMPROBADO QUE FUNCIONA)
+            try:
+                self.log("    → Ejecutando clickbtn_validar() con JavaScript...")
+                self.driver.execute_script("clickbtn_validar();")
+                self.log("    ✅ Función JavaScript ejecutada exitosamente")
+                clic_siguiente_exitoso = True
+            except Exception as e:
+                self.log(f"    ⚠️ Falló JS directo: {str(e)[:50]}")
+
+                # FALLBACK: Click con JavaScript en el elemento
+                try:
+                    self.log("    → Fallback: Click JS en elemento...")
+                    boton_siguiente = self.driver.find_element(By.XPATH,
+                        "//input[@onclick='clickbtn_validar()']")
+                    self.driver.execute_script("arguments[0].click();", boton_siguiente)
+                    self.log("    ✅ Click JS ejecutado")
+                    clic_siguiente_exitoso = True
+                except Exception as e2:
+                    self.log(f"    ⚠️ Falló fallback: {str(e2)[:50]}")
+
+            if not clic_siguiente_exitoso:
+                raise Exception("No se pudo hacer clic en Siguiente después de intentos")
 
             # ESPERA AUMENTADA: La página necesita tiempo para cargar la nueva sección
             self.log("  → Esperando carga de nueva sección (5 segundos)...")
