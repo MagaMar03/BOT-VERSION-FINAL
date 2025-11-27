@@ -1,0 +1,3657 @@
+"""
+BOT DE REGISTRO MASIVO DE DENUNCIAS - SUNAT
+Versión Microsoft Edge - V3 MEJORADO
+Autor: Sistema Automatizado
+Fecha: 2025
+
+✨ FUNCIONALIDADES:
+═══════════════════════════════════════════════════════════════
+✅ Interfaz mejorada - Diseño profesional y moderno
+✅ Corrección de iframe con carga AJAX
+✅ Búsqueda inteligente de elementos en formularios
+✅ Múltiples estrategias de clic y llenado de campos
+═══════════════════════════════════════════════════════════════
+"""
+
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.edge.options import Options
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from datetime import datetime, timedelta
+import time
+import os
+import threading
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, scrolledtext
+import json
+
+
+# ============================================
+# CLASE PRINCIPAL DEL BOT
+# ============================================
+class BotDenunciasSUNAT:
+    
+    def __init__(self, archivo_excel, usuario, password, interfaz):
+        self.archivo_excel = archivo_excel
+        self.USUARIO = usuario
+        self.PASSWORD = password
+        self.interfaz = interfaz
+        
+        self.driver = None
+        self.wait = None
+        self.denuncias_exitosas = 0
+        self.denuncias_fallidas = 0
+        
+        self.URL_LOGIN = "https://intranet.sunat.peru/cl-at-iamenu/"
+        
+        self.log("Bot inicializado correctamente (Microsoft Edge)")
+    
+    def log(self, mensaje):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.interfaz.escribir_consola(f"[{timestamp}] {mensaje}\n")
+    
+    # ============================================
+    # INICIALIZACIÓN
+    # ============================================
+    
+    def iniciar_navegador(self):
+        try:
+            self.log("Iniciando Microsoft Edge...")
+            
+            edge_options = Options()
+            edge_options.add_argument('--start-maximized')
+            edge_options.add_argument('--disable-blink-features=AutomationControlled')
+            edge_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            edge_options.add_experimental_option('useAutomationExtension', False)
+            
+            self.driver = webdriver.Edge(options=edge_options)
+            self.wait = WebDriverWait(self.driver, 20)
+            
+            self.log("✅ Microsoft Edge iniciado correctamente")
+            return True
+        except Exception as e:
+            self.log(f"❌ Error al iniciar Edge: {str(e)}")
+            self.log("ℹ️ Asegúrese de tener Microsoft Edge instalado")
+            return False
+    
+    def cerrar_navegador(self):
+        try:
+            if self.driver:
+                self.driver.quit()
+                self.log("Navegador cerrado")
+        except:
+            pass
+    
+    # ============================================
+    # LOGIN Y NAVEGACIÓN
+    # ============================================
+
+    def hacer_clic_robusto(self, elemento, descripcion, max_intentos=3):
+        """
+        Intenta hacer clic en un elemento usando múltiples estrategias
+        hasta que sea exitoso o se agoten los intentos.
+
+        Estrategias:
+        1. Click normal con Selenium
+        2. Click con JavaScript
+        3. Click con ActionChains
+        4. Click con offset
+        """
+        for intento in range(1, max_intentos + 1):
+            try:
+                self.log(f"    → Intento {intento}/{max_intentos} para {descripcion}...")
+
+                # Estrategia 1: Scroll y click normal
+                try:
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", elemento)
+                    time.sleep(0.5)
+                    elemento.click()
+                    self.log(f"    ✅ Clic exitoso (método normal)")
+                    return True
+                except:
+                    pass
+
+                # Estrategia 2: JavaScript click
+                try:
+                    self.driver.execute_script("arguments[0].click();", elemento)
+                    self.log(f"    ✅ Clic exitoso (JavaScript)")
+                    return True
+                except:
+                    pass
+
+                # Estrategia 3: ActionChains
+                try:
+                    from selenium.webdriver.common.action_chains import ActionChains
+                    actions = ActionChains(self.driver)
+                    actions.move_to_element(elemento).click().perform()
+                    self.log(f"    ✅ Clic exitoso (ActionChains)")
+                    return True
+                except:
+                    pass
+
+                # Estrategia 4: Force click con JavaScript (más agresivo)
+                try:
+                    self.driver.execute_script("""
+                        arguments[0].dispatchEvent(new MouseEvent('click', {
+                            view: window,
+                            bubbles: true,
+                            cancelable: true
+                        }));
+                    """, elemento)
+                    self.log(f"    ✅ Clic exitoso (Force JavaScript)")
+                    return True
+                except:
+                    pass
+
+                if intento < max_intentos:
+                    self.log(f"    ⚠️ Intento {intento} falló, esperando antes de reintentar...")
+                    time.sleep(2)
+
+            except Exception as e:
+                self.log(f"    ❌ Error en intento {intento}: {str(e)}")
+                if intento < max_intentos:
+                    time.sleep(2)
+
+        self.log(f"    ❌ FALLO: No se pudo hacer clic en {descripcion} después de {max_intentos} intentos")
+        return False
+
+    def pausa_interactiva_y_captura(self):
+        """
+        🔬 FUNCIÓN DE PAUSA INTERACTIVA PARA DEBUGGING
+
+        Esta función:
+        1. PAUSA el programa después del clic en "Registro de Denuncias"
+        2. Te permite hacer clic MANUAL en el formulario que aparece
+        3. Espera tu confirmación
+        4. CAPTURA TODO el HTML del iframe y selectores en ese momento exacto
+        5. EXPORTA toda la información a archivos TXT para análisis
+
+        Esto nos permite obtener el HTML REAL del iframe problemático.
+        """
+        try:
+            self.log("\n" + "="*80)
+            self.log("⏸️  PAUSA INTERACTIVA ACTIVADA")
+            self.log("="*80)
+
+            # Esperar a que cargue el iframe
+            self.log("⏳ Esperando 5 segundos para que cargue el iframe...")
+            time.sleep(5)
+
+            # Mostrar diálogo al usuario
+            respuesta = messagebox.showinfo(
+                "🔬 PAUSA INTERACTIVA - DEBUGGING",
+                "El bot se ha pausado después de hacer clic en 'Registro de Denuncias'.\n\n"
+                "📋 INSTRUCCIONES:\n\n"
+                "1. Observa la ventana del navegador Edge\n"
+                "2. Si ves un formulario, haz clic MANUAL sobre él\n"
+                "3. Si hay campos de entrada, haz clic en alguno\n"
+                "4. Cuando termines, haz clic en OK aquí\n\n"
+                "⚠️ El bot capturará TODA la información HTML\n"
+                "   del iframe en ese momento exacto.\n\n"
+                "Haz clic en OK cuando estés listo..."
+            )
+
+            self.log("✅ Usuario confirmó - Iniciando captura completa...")
+
+            # Esperar un momento adicional
+            time.sleep(2)
+
+            # EJECUTAR DIAGNÓSTICO COMPLETO
+            self.log("\n🔍 Ejecutando diagnóstico ultra completo...")
+            carpeta = self.exportar_diagnostico_completo(nombre_archivo="captura_interactiva")
+
+            # Además, crear archivo TXT adicional con información específica
+            if carpeta:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                archivo_adicional = os.path.join(carpeta, f"CAPTURA_MANUAL_{timestamp}.txt")
+
+                with open(archivo_adicional, "w", encoding="utf-8") as f:
+                    f.write("="*80 + "\n")
+                    f.write("CAPTURA DESPUÉS DE INTERVENCIÓN MANUAL\n")
+                    f.write("="*80 + "\n")
+                    f.write(f"Timestamp: {timestamp}\n")
+                    f.write(f"URL actual: {self.driver.current_url}\n")
+                    f.write(f"Título: {self.driver.title}\n\n")
+
+                    f.write("="*80 + "\n")
+                    f.write("IFRAMES ENCONTRADOS EN PÁGINA PRINCIPAL\n")
+                    f.write("="*80 + "\n\n")
+
+                    # Volver a contexto principal
+                    self.driver.switch_to.default_content()
+                    iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+
+                    f.write(f"Total de iframes: {len(iframes)}\n\n")
+
+                    for i, iframe in enumerate(iframes):
+                        f.write(f"\n{'='*60}\n")
+                        f.write(f"IFRAME #{i}\n")
+                        f.write(f"{'='*60}\n")
+                        f.write(f"ID: {iframe.get_attribute('id') or 'sin_id'}\n")
+                        f.write(f"NAME: {iframe.get_attribute('name') or 'sin_name'}\n")
+                        f.write(f"SRC: {iframe.get_attribute('src') or 'sin_src'}\n")
+                        f.write(f"CLASS: {iframe.get_attribute('class') or 'sin_class'}\n")
+                        f.write(f"VISIBLE: {iframe.is_displayed()}\n")
+                        f.write(f"ENABLED: {iframe.is_enabled()}\n\n")
+
+                        # Intentar acceder y buscar elementos clave
+                        try:
+                            self.driver.switch_to.default_content()
+                            self.driver.switch_to.frame(i)
+
+                            f.write("ACCESO: ✅ Exitoso\n\n")
+
+                            # Buscar elementos clave
+                            f.write("BÚSQUEDA DE ELEMENTOS CLAVE:\n")
+
+                            # Campo tipodoc
+                            try:
+                                tipodoc = self.driver.find_element(By.NAME, "tipodoc")
+                                f.write("  ✅ Campo 'tipodoc' ENCONTRADO ⭐⭐⭐\n")
+                                f.write(f"     Tag: {tipodoc.tag_name}\n")
+                                f.write(f"     ID: {tipodoc.get_attribute('id')}\n")
+                                f.write(f"     Visible: {tipodoc.is_displayed()}\n")
+                            except:
+                                f.write("  ❌ Campo 'tipodoc' NO encontrado\n")
+
+                            # Campo numdoc
+                            try:
+                                numdoc = self.driver.find_element(By.NAME, "numdoc")
+                                f.write("  ✅ Campo 'numdoc' ENCONTRADO\n")
+                            except:
+                                f.write("  ❌ Campo 'numdoc' NO encontrado\n")
+
+                            # Formulario registroden
+                            try:
+                                form = self.driver.find_element(By.NAME, "registroden")
+                                f.write("  ✅ Formulario 'registroden' ENCONTRADO\n")
+                            except:
+                                f.write("  ❌ Formulario 'registroden' NO encontrado\n")
+
+                            # Contar elementos
+                            f.write(f"\nCONTEO DE ELEMENTOS:\n")
+                            f.write(f"  Forms: {len(self.driver.find_elements(By.TAG_NAME, 'form'))}\n")
+                            f.write(f"  Inputs: {len(self.driver.find_elements(By.TAG_NAME, 'input'))}\n")
+                            f.write(f"  Selects: {len(self.driver.find_elements(By.TAG_NAME, 'select'))}\n")
+                            f.write(f"  Buttons: {len(self.driver.find_elements(By.TAG_NAME, 'button'))}\n")
+
+                            self.driver.switch_to.default_content()
+
+                        except Exception as e:
+                            f.write(f"ACCESO: ❌ Falló - {str(e)}\n")
+                            self.driver.switch_to.default_content()
+
+                    f.write("\n" + "="*80 + "\n")
+                    f.write("🎯 RECOMENDACIÓN PARA CORRECCIÓN\n")
+                    f.write("="*80 + "\n")
+                    f.write("Busca en este archivo el iframe que tenga:\n")
+                    f.write("  ✅ Campo 'tipodoc' ENCONTRADO ⭐⭐⭐\n\n")
+                    f.write("Ese iframe es el correcto. Usa su ID o índice para corregir el código.\n")
+
+                self.log(f"\n📁 Información adicional guardada en: {archivo_adicional}")
+
+                # Mostrar cuadro final
+                messagebox.showinfo(
+                    "✅ Captura Completada",
+                    f"La captura se completó exitosamente.\n\n"
+                    f"📁 Carpeta: {os.path.basename(carpeta)}\n\n"
+                    f"Archivos importantes:\n"
+                    f"• 00_REPORTE_RESUMEN.txt\n"
+                    f"• CAPTURA_MANUAL_{timestamp}.txt\n"
+                    f"• iframe_X_*.html (HTML de cada iframe)\n\n"
+                    f"Busca el iframe que contenga el campo 'tipodoc'"
+                )
+
+            self.log("✅ Pausa interactiva completada - Continuando...")
+
+        except Exception as e:
+            self.log(f"❌ Error en pausa interactiva: {str(e)}")
+            import traceback
+            self.log(traceback.format_exc())
+
+    def cambiar_a_iframe_formulario_v2(self):
+        """
+        MÉTODO CORREGIDO - Incluye cambio al frame 'det'
+
+        Estructura:
+        - Página principal
+          └─ iframe 'iframeApplication'
+             └─ frame 'det'
+                └─ Formulario con 'tipodoc'
+        """
+        self.log("  🔍 Accediendo al iframe anidado...")
+
+        for intento in range(1, 4):
+            try:
+                self.log(f"\n  📍 Intento {intento}/3")
+
+                # Volver al contexto principal
+                self.driver.switch_to.default_content()
+
+                # PASO 1: Cambiar a iframe 'iframeApplication'
+                self.log("  → PASO 1: Buscando iframe 'iframeApplication'...")
+                wait = WebDriverWait(self.driver, 10)
+
+                iframe = wait.until(
+                    EC.presence_of_element_located((By.ID, "iframeApplication"))
+                )
+                self.log("  ✓ Iframe encontrado")
+
+                self.driver.switch_to.frame(iframe)
+                self.log("  ✓ Cambio al iframe exitoso")
+                time.sleep(1)
+
+                # PASO 2: Cambiar al frame 'det' DENTRO del iframe
+                self.log("  → PASO 2: Buscando frame 'det'...")
+                wait_frame = WebDriverWait(self.driver, 10)
+
+                frame_det = wait_frame.until(
+                    EC.presence_of_element_located((By.NAME, "det"))
+                )
+                self.log("  ✓ Frame 'det' encontrado")
+
+                self.driver.switch_to.frame(frame_det)
+                self.log("  ✓ Cambio al frame 'det' exitoso")
+                time.sleep(1)
+
+                # PASO 3: Verificar que el campo 'tipodoc' existe
+                self.log("  → PASO 3: Verificando campo 'tipodoc'...")
+                campo_tipodoc = wait_frame.until(
+                    EC.presence_of_element_located((By.NAME, "tipodoc"))
+                )
+
+                self.log("  ✅ ¡Campo 'tipodoc' encontrado!")
+
+                if campo_tipodoc.tag_name.lower() == "select":
+                    self.log("  ✅ Formulario completamente cargado")
+                    return True
+
+            except TimeoutException:
+                self.log(f"  ⏱️ Timeout en intento {intento}")
+                if intento < 3:
+                    time.sleep(3)
+
+            except Exception as e:
+                self.log(f"  ❌ Error en intento {intento}: {str(e)[:100]}")
+                if intento < 3:
+                    time.sleep(3)
+
+        self.log("  ❌ FALLO: No se pudo acceder al formulario")
+        return False
+
+    def encontrar_campo_en_cualquier_iframe(self, by, valor, max_intentos=3):
+        """
+        MÉTODO ULTRA ROBUSTO
+        Busca un elemento en TODOS los iframes de forma recursiva
+        """
+        self.log(f"  🔍 Buscando '{valor}' en todos los iframes...")
+
+        for intento in range(1, max_intentos + 1):
+            try:
+                # Intentar en página principal
+                self.driver.switch_to.default_content()
+                try:
+                    elemento = self.driver.find_element(by, valor)
+                    if elemento.is_displayed():
+                        self.log(f"  ✅ Encontrado en página principal")
+                        return elemento
+                except:
+                    pass
+
+                # Buscar en iframes de nivel 1
+                iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                self.log(f"  → {len(iframes)} iframes detectados")
+
+                for i, iframe in enumerate(iframes):
+                    try:
+                        self.driver.switch_to.default_content()
+                        self.driver.switch_to.frame(i)
+
+                        # Buscar directamente
+                        try:
+                            elemento = self.driver.find_element(by, valor)
+                            if elemento.is_displayed():
+                                self.log(f"  ✅ Encontrado en iframe #{i}")
+                                return elemento
+                        except:
+                            pass
+
+                        # Buscar frames internos (nivel 2)
+                        frames_internos = self.driver.find_elements(By.TAG_NAME, "frame")
+                        frames_internos.extend(self.driver.find_elements(By.TAG_NAME, "iframe"))
+
+                        for j, frame_interno in enumerate(frames_internos):
+                            try:
+                                self.driver.switch_to.frame(j)
+
+                                elemento = self.driver.find_element(by, valor)
+                                if elemento.is_displayed():
+                                    self.log(f"  ✅ Encontrado en iframe #{i} → frame #{j}")
+                                    return elemento
+
+                                self.driver.switch_to.parent_frame()
+                            except:
+                                try:
+                                    self.driver.switch_to.parent_frame()
+                                except:
+                                    pass
+
+                    except:
+                        pass
+
+                if intento < max_intentos:
+                    self.log(f"  → Intento {intento} falló, esperando...")
+                    time.sleep(2)
+
+            except Exception as e:
+                self.log(f"  ⚠️ Error: {str(e)[:100]}")
+
+        self.log(f"  ❌ No se encontró '{valor}' en ningún iframe")
+        return None
+
+    def encontrar_campo_por_texto_visible(self, texto_label, tipo_elemento="input"):
+        """
+        Busca campo usando el texto visible del label
+        """
+        self.log(f"  🔍 Buscando campo con label '{texto_label}'...")
+
+        # XPaths que buscan por texto visible
+        xpaths = [
+            f"//td[contains(text(), '{texto_label}')]/following-sibling::td//{tipo_elemento}",
+            f"//td[contains(text(), '{texto_label}')]//following::{tipo_elemento}[1]",
+            f"//label[contains(text(), '{texto_label}')]/following::{tipo_elemento}[1]",
+        ]
+
+        # Buscar en página principal
+        self.driver.switch_to.default_content()
+        for xpath in xpaths:
+            try:
+                elemento = self.driver.find_element(By.XPATH, xpath)
+                if elemento.is_displayed():
+                    self.log(f"  ✅ Encontrado en página principal")
+                    return elemento
+            except:
+                pass
+
+        # Buscar en iframes
+        iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+        for i, iframe in enumerate(iframes):
+            try:
+                self.driver.switch_to.default_content()
+                self.driver.switch_to.frame(i)
+
+                for xpath in xpaths:
+                    try:
+                        elemento = self.driver.find_element(By.XPATH, xpath)
+                        if elemento.is_displayed():
+                            self.log(f"  ✅ Encontrado en iframe #{i}")
+                            return elemento
+                    except:
+                        pass
+
+                # Buscar en frames internos
+                frames = self.driver.find_elements(By.TAG_NAME, "frame")
+                for j, frame in enumerate(frames):
+                    try:
+                        self.driver.switch_to.frame(j)
+
+                        for xpath in xpaths:
+                            try:
+                                elemento = self.driver.find_element(By.XPATH, xpath)
+                                if elemento.is_displayed():
+                                    self.log(f"  ✅ Encontrado en iframe #{i} → frame #{j}")
+                                    return elemento
+                            except:
+                                pass
+
+                        self.driver.switch_to.parent_frame()
+                    except:
+                        pass
+
+            except:
+                pass
+
+        self.log(f"  ❌ No se encontró campo con label '{texto_label}'")
+        return None
+
+    def acceder_al_formulario_y_buscar_campo(self, nombre_campo):
+        """
+        MÉTODO HÍBRIDO - Combina todos los enfoques
+
+        1. Intenta método directo (iframeApplication → det → campo)
+        2. Si falla, busca en todos los iframes
+        3. Si falla, busca por texto visible
+        """
+        self.log(f"  🎯 Buscando campo '{nombre_campo}'...")
+
+        # INTENTO 1: Método directo (el más rápido)
+        try:
+            self.log("  → Método 1: Ruta directa")
+            self.driver.switch_to.default_content()
+            self.driver.switch_to.frame("iframeApplication")
+            time.sleep(0.5)
+            self.driver.switch_to.frame("det")
+            time.sleep(0.5)
+
+            elemento = self.driver.find_element(By.NAME, nombre_campo)
+            if elemento.is_displayed():
+                self.log(f"  ✅ Encontrado por método directo")
+                return elemento
+        except Exception as e:
+            self.log(f"  → Método 1 falló: {str(e)[:50]}")
+
+        # INTENTO 2: Búsqueda exhaustiva en iframes
+        self.log("  → Método 2: Búsqueda en todos los iframes")
+        elemento = self.encontrar_campo_en_cualquier_iframe(By.NAME, nombre_campo)
+        if elemento:
+            return elemento
+
+        # INTENTO 3: Por texto visible
+        mapeo_textos = {
+            "tipodoc": "Tipo Documento",
+            "numdoc": "Número",
+            "nombre": "Apellidos y Nombres",
+            "dpto": "Departamento",
+            "prov": "Provincia",
+            "dist": "Distrito",
+            "telefono": "Teléfono",
+            "correo": "Correo Electrónico"
+        }
+
+        if nombre_campo in mapeo_textos:
+            self.log("  → Método 3: Búsqueda por texto visible")
+            tipo_elemento = "select" if nombre_campo in ["tipodoc", "dpto", "prov", "dist"] else "input"
+            elemento = self.encontrar_campo_por_texto_visible(mapeo_textos[nombre_campo], tipo_elemento)
+            if elemento:
+                return elemento
+
+        self.log(f"  ❌ No se pudo encontrar '{nombre_campo}' con ningún método")
+        return None
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 🏆 SISTEMA PROFESIONAL DE LOCALIZACIÓN DE ELEMENTOS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    # Diccionario COMPLETO de definiciones de campos del formulario SUNAT
+    CAMPOS_SUNAT = {
+        # ─────────────────────────────────────────────────────────────────────────
+        # SECCIÓN 1: IDENTIFICACIÓN DEL DENUNCIANTE
+        # ─────────────────────────────────────────────────────────────────────────
+        "tipodoc": {
+            "tipo": "select",
+            "selectores": ["tipodoc", "tipoDoc", "tipo_doc", "cboTipoDoc"],
+            "textos_visibles": ["Tipo Documento", "Tipo Doc.", "Tipo de Documento", "TIPO DOCUMENTO", "Tipo Docum"],
+            "xpaths": [
+                "//select[@name='tipodoc']",
+                "//select[contains(@id,'tipo')]",
+                "//td[contains(text(),'Tipo')]/following::select[1]",
+                "//label[contains(text(),'Tipo')]/following::select[1]"
+            ]
+        },
+        "numdoc": {
+            "tipo": "input",
+            "selectores": ["numdoc", "numDoc", "num_doc", "txtNumDoc", "numero"],
+            "textos_visibles": ["Número", "Numero", "Nro.", "NRO", "NÚMERO", "Nº", "N°", "Núm"],
+            "xpaths": [
+                "//input[@name='numdoc']",
+                "//input[contains(@id,'num')]",
+                "//td[contains(text(),'mero')]/following::input[1]",
+                "//td[contains(text(),'Nro')]/following::input[1]"
+            ]
+        },
+        "nombre": {
+            "tipo": "input",
+            "selectores": ["nombre", "nombres", "txtNombre", "razonSocial"],
+            "textos_visibles": ["Apellidos y Nombres", "Razón Social", "Nombre", "APELLIDOS Y NOMBRES", "Denominación"],
+            "xpaths": [
+                "//input[@name='nombre']",
+                "//input[@id='nombre']",
+                "//td[contains(text(),'Apellidos')]/following::input[1]",
+                "//td[contains(text(),'Razón')]/following::input[1]"
+            ]
+        },
+        "dpto": {
+            "tipo": "select",
+            "selectores": ["dpto", "departamento", "cboDpto", "dep"],
+            "textos_visibles": ["Departamento", "DEPARTAMENTO", "Dpto.", "Dpto"],
+            "xpaths": [
+                "//select[@name='dpto']",
+                "//select[contains(@id,'dpto')]",
+                "//td[contains(text(),'Departamento')]/following::select[1]"
+            ]
+        },
+        "prov": {
+            "tipo": "select",
+            "selectores": ["prov", "provincia", "cboProv"],
+            "textos_visibles": ["Provincia", "PROVINCIA", "Prov."],
+            "xpaths": [
+                "//select[@name='prov']",
+                "//select[contains(@id,'prov')]",
+                "//td[contains(text(),'Provincia')]/following::select[1]"
+            ]
+        },
+        "dist": {
+            "tipo": "select",
+            "selectores": ["dist", "distrito", "cboDist"],
+            "textos_visibles": ["Distrito", "DISTRITO", "Dist."],
+            "xpaths": [
+                "//select[@name='dist']",
+                "//select[contains(@id,'dist')]",
+                "//td[contains(text(),'Distrito')]/following::select[1]"
+            ]
+        },
+        "telefono": {
+            "tipo": "input",
+            "selectores": ["telefono", "telef", "txtTelefono", "fono"],
+            "textos_visibles": ["Teléfono", "Telefono", "TELÉFONO", "Tel.", "Fono"],
+            "xpaths": [
+                "//input[@name='telefono']",
+                "//input[contains(@id,'telef')]",
+                "//td[contains(text(),'fono')]/following::input[1]"
+            ]
+        },
+        "correo": {
+            "tipo": "input",
+            "selectores": ["correo", "email", "mail", "txtCorreo"],
+            "textos_visibles": ["Correo", "Email", "E-mail", "CORREO", "Correo electrónico"],
+            "xpaths": [
+                "//input[@name='correo']",
+                "//input[contains(@id,'correo')]",
+                "//input[contains(@id,'mail')]",
+                "//td[contains(text(),'Correo')]/following::input[1]"
+            ]
+        },
+
+        # ─────────────────────────────────────────────────────────────────────────
+        # BOTONES DE ACCIÓN
+        # ─────────────────────────────────────────────────────────────────────────
+        "buscar": {
+            "tipo": "button",
+            "selectores": ["buscar", "btnBuscar", "btn_buscar"],
+            "textos_visibles": ["Buscar", "BUSCAR", "Buscar "],
+            "xpaths": [
+                "//input[@type='button'][@value='Buscar']",
+                "//input[@type='submit'][@value='Buscar']",
+                "//button[contains(text(),'Buscar')]",
+                "//input[contains(@onclick,'buscar')]",
+                "//a[contains(text(),'Buscar')]"
+            ],
+            "onclick": ["buscar()", "fnBuscar()", "buscarDatos()"]
+        },
+        "siguiente": {
+            "tipo": "button",
+            "selectores": ["siguiente", "btnSiguiente", "btn_siguiente", "validar"],
+            "textos_visibles": ["Siguiente", "SIGUIENTE", "Validar", "Continuar", ">>"],
+            "xpaths": [
+                "//input[@type='button'][@value='Siguiente']",
+                "//input[@type='button'][contains(@value,'iguiente')]",
+                "//button[contains(text(),'Siguiente')]",
+                "//input[contains(@onclick,'siguiente')]",
+                "//input[contains(@onclick,'validar')]",
+                "//a[contains(text(),'Siguiente')]"
+            ],
+            "onclick": ["siguiente()", "fnSiguiente()", "validar()", "fnValidar()"]
+        },
+        "grabar": {
+            "tipo": "button",
+            "selectores": ["grabar", "btnGrabar", "guardar"],
+            "textos_visibles": ["Grabar", "GRABAR", "Guardar", "Enviar"],
+            "xpaths": [
+                "//input[@type='button'][@value='Grabar']",
+                "//input[@type='submit'][@value='Grabar']",
+                "//button[contains(text(),'Grabar')]"
+            ],
+            "onclick": ["grabar()", "fnGrabar()", "guardar()"]
+        }
+    }
+
+    def buscar_elemento_profesional(self, nombre_campo):
+        """
+        🏆 MÉTODO PROFESIONAL - Garantiza encontrar el elemento usando TODAS las estrategias
+
+        Orden de búsqueda:
+        1. PRIMERO: Buscar en el contexto ACTUAL (ya estamos en el iframe correcto)
+        2. Si no encuentra, navegar a todos los iframes/frames posibles
+        3. En cada contexto, probar TODOS los selectores definidos
+        4. Probar TODOS los XPaths definidos
+        5. Buscar por texto literal visible en pantalla
+        6. Buscar por función onclick (para botones)
+
+        Returns:
+            WebElement si encuentra, None si no
+        """
+        if nombre_campo not in self.CAMPOS_SUNAT:
+            self.log(f"  ⚠️ Campo '{nombre_campo}' no está definido en CAMPOS_SUNAT")
+            return None
+
+        campo = self.CAMPOS_SUNAT[nombre_campo]
+        self.log(f"\n  🔎 BÚSQUEDA PROFESIONAL: '{nombre_campo}' ({campo['tipo']})")
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # PRIMERO: Intentar en el CONTEXTO ACTUAL (sin cambiar de iframe)
+        # ═══════════════════════════════════════════════════════════════════════
+        self.log(f"  📂 Buscando en contexto ACTUAL (sin cambiar iframe)...")
+
+        elemento = self._buscar_en_contexto_actual(nombre_campo, campo)
+        if elemento:
+            self.log(f"  ✅ ENCONTRADO en contexto actual")
+            return elemento
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # SEGUNDO: Si no encontró, buscar en TODOS los contextos
+        # ═══════════════════════════════════════════════════════════════════════
+        self.log(f"  → No encontrado en contexto actual, buscando en todos los contextos...")
+
+        # Obtener todos los contextos de iframes
+        contextos = self._obtener_todos_los_contextos()
+
+        for ctx_nombre, ctx_path in contextos:
+            self.log(f"  📂 Buscando en contexto: {ctx_nombre}")
+
+            # Cambiar al contexto
+            if not self._cambiar_a_contexto(ctx_path):
+                continue
+
+            elemento = self._buscar_en_contexto_actual(nombre_campo, campo)
+            if elemento:
+                self.log(f"  ✅ ENCONTRADO en {ctx_nombre}")
+                return elemento
+
+        self.log(f"  ❌ No se encontró '{nombre_campo}' en ningún contexto")
+        return None
+
+    def _buscar_en_contexto_actual(self, nombre_campo, campo):
+        """
+        🔍 Busca el elemento en el contexto actual sin cambiar de iframe
+        """
+        # ESTRATEGIA 1: Por selectores (name, id)
+        for selector in campo["selectores"]:
+            try:
+                elem = self.driver.find_element(By.NAME, selector)
+                if elem and elem.is_displayed():
+                    self.log(f"    ✓ Encontrado por NAME='{selector}'")
+                    return elem
+            except: pass
+
+            try:
+                elem = self.driver.find_element(By.ID, selector)
+                if elem and elem.is_displayed():
+                    self.log(f"    ✓ Encontrado por ID='{selector}'")
+                    return elem
+            except: pass
+
+        # ESTRATEGIA 2: Por XPaths definidos
+        for xpath in campo["xpaths"]:
+            try:
+                elem = self.driver.find_element(By.XPATH, xpath)
+                if elem and elem.is_displayed():
+                    self.log(f"    ✓ Encontrado por XPATH")
+                    return elem
+            except: pass
+
+        # ESTRATEGIA 3: Por texto visible literal
+        for texto in campo["textos_visibles"]:
+            elem = self._buscar_campo_por_texto_cercano(texto, campo["tipo"])
+            if elem:
+                self.log(f"    ✓ Encontrado por TEXTO '{texto}'")
+                return elem
+
+        # ESTRATEGIA 4: Por onclick (solo botones)
+        if campo["tipo"] == "button" and "onclick" in campo:
+            for onclick in campo["onclick"]:
+                try:
+                    elem = self.driver.find_element(
+                        By.XPATH, f"//*[contains(@onclick,'{onclick.replace('()', '')}')]"
+                    )
+                    if elem:
+                        self.log(f"    ✓ Encontrado por ONCLICK='{onclick}'")
+                        return elem
+                except: pass
+
+        return None
+
+    def _obtener_todos_los_contextos(self):
+        """
+        📋 Obtiene lista de todos los contextos (main + iframes) para buscar
+        Returns: Lista de tuplas (nombre, path_para_navegar)
+        """
+        contextos = [("main", [])]
+
+        try:
+            self.driver.switch_to.default_content()
+
+            # Buscar iframes en documento principal
+            iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+            frames = self.driver.find_elements(By.TAG_NAME, "frame")
+
+            self.log(f"  📊 Detectados: {len(iframes)} iframes, {len(frames)} frames en main")
+
+            for i, iframe in enumerate(iframes):
+                nombre = iframe.get_attribute("name") or iframe.get_attribute("id") or f"iframe_{i}"
+                contextos.append((f"iframe:{nombre}", [("iframe", nombre, i)]))
+
+                # Buscar frames anidados dentro de este iframe
+                try:
+                    self.driver.switch_to.frame(iframe)
+                    frames_internos = self.driver.find_elements(By.TAG_NAME, "frame")
+                    self.log(f"    → Dentro de '{nombre}': {len(frames_internos)} frames anidados")
+                    for j, frame in enumerate(frames_internos):
+                        nombre_frame = frame.get_attribute("name") or f"frame_{j}"
+                        self.log(f"      - Frame encontrado: '{nombre_frame}'")
+                        contextos.append((
+                            f"iframe:{nombre}→frame:{nombre_frame}",
+                            [("iframe", nombre, i), ("frame", nombre_frame, j)]
+                        ))
+                    self.driver.switch_to.default_content()
+                except Exception as e:
+                    self.log(f"    ⚠️ Error explorando iframe '{nombre}': {str(e)[:50]}")
+                    self.driver.switch_to.default_content()
+
+            for i, frame in enumerate(frames):
+                nombre = frame.get_attribute("name") or f"frame_{i}"
+                contextos.append((f"frame:{nombre}", [("frame", nombre, i)]))
+
+        except Exception as e:
+            self.log(f"  ⚠️ Error obteniendo contextos: {e}")
+
+        self.log(f"  📋 Total contextos detectados: {len(contextos)}")
+        for ctx_nombre, _ in contextos:
+            self.log(f"     - {ctx_nombre}")
+
+        return contextos
+
+    def _cambiar_a_contexto(self, path):
+        """
+        🔄 Cambia al contexto especificado por el path
+        """
+        try:
+            self.driver.switch_to.default_content()
+
+            for tipo, nombre, indice in path:
+                if tipo in ("iframe", "frame"):
+                    try:
+                        # Intentar por nombre primero
+                        self.driver.switch_to.frame(nombre)
+                    except:
+                        # Si falla, intentar por índice
+                        elementos = self.driver.find_elements(By.TAG_NAME, tipo)
+                        if indice < len(elementos):
+                            self.driver.switch_to.frame(elementos[indice])
+                        else:
+                            return False
+            return True
+        except:
+            return False
+
+    def _buscar_campo_por_texto_cercano(self, texto, tipo_elemento):
+        """
+        🔍 Busca un campo por el texto visible que aparece cerca (en la misma fila, celda, etc.)
+        """
+        # XPaths para encontrar el campo asociado al texto
+        xpaths_busqueda = [
+            # Texto en TD, campo en siguiente TD
+            f"//td[contains(normalize-space(text()),'{texto}')]/following-sibling::td[1]//{tipo_elemento if tipo_elemento != 'button' else '*'}",
+            # Texto en TD, campo en TD siguiente cualquier nivel
+            f"//td[contains(normalize-space(.),'{texto}')]/following::td[1]//{tipo_elemento if tipo_elemento != 'button' else '*'}[1]",
+            # Texto en cualquier elemento, campo siguiente
+            f"//*[contains(normalize-space(text()),'{texto}')]/following::{tipo_elemento if tipo_elemento != 'button' else '*'}[1]",
+            # Label con for
+            f"//label[contains(normalize-space(.),'{texto}')]/@for",
+            # Texto en TH, campo en TD de misma fila
+            f"//tr[th[contains(normalize-space(.),'{texto}')]]/td//{tipo_elemento if tipo_elemento != 'button' else '*'}",
+        ]
+
+        # Para botones, agregar búsquedas específicas
+        if tipo_elemento == "button":
+            xpaths_busqueda.extend([
+                f"//input[@type='button'][@value='{texto}']",
+                f"//input[@type='submit'][@value='{texto}']",
+                f"//button[normalize-space(.)='{texto}']",
+                f"//a[normalize-space(.)='{texto}']",
+                f"//input[@type='button'][contains(@value,'{texto}')]",
+            ])
+
+        for xpath in xpaths_busqueda:
+            try:
+                # Si es un atributo (for), obtener el ID y buscar el elemento
+                if "/@for" in xpath:
+                    label = self.driver.find_element(By.XPATH, xpath.replace("/@for", ""))
+                    for_id = label.get_attribute("for")
+                    if for_id:
+                        elem = self.driver.find_element(By.ID, for_id)
+                        if elem and elem.is_displayed():
+                            return elem
+                else:
+                    elem = self.driver.find_element(By.XPATH, xpath)
+                    if elem and elem.is_displayed():
+                        return elem
+            except:
+                pass
+
+        return None
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # MÉTODOS DE COMPATIBILIDAD (mantener los anteriores funcionando)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def buscar_elemento_universal(self, nombre_campo, tipo_elemento="input"):
+        """
+        🎯 MÉTODO MAESTRO - Ahora usa el sistema profesional primero
+        """
+        # Primero intentar con el sistema profesional
+        resultado = self.buscar_elemento_profesional(nombre_campo)
+        if resultado:
+            return resultado
+
+        # Fallback al sistema anterior
+        self.log(f"  → Usando sistema de fallback para '{nombre_campo}'...")
+
+        # Mapeo de campos a textos visibles literales
+        mapeo_textos = {
+            # SECCIÓN 1: Identificación del denunciado
+            "tipodoc": ["Tipo Documento", "Tipo Doc", "TIPO DOCUMENTO"],
+            "numdoc": ["Número", "Numero", "NRO", "NÚMERO"],
+            "nombre": ["Apellidos y Nombres", "Razón social", "APELLIDOS"],
+            "buscar": ["Buscar", "BUSCAR"],
+            "siguiente": ["Siguiente", "SIGUIENTE", "Validar"],
+
+            # SECCIÓN 2: Atención de denuncias
+            "modalidad": ["Modalidad Evasión Denunciada", "Modalidad", "MODALIDAD"],
+            "detalle": ["DETALLE DE LA DENUNCIA", "Detalle", "DETALLE"],
+            "fecha_sid": ["Fecha SID", "FECHA SID"],
+            "MesDesde": ["Del Mes", "Mes Desde", "DEL MES"],
+            "AnioDesde": ["Del Año", "Año Desde", "DEL AÑO"],
+            "MesHasta": ["Al Mes", "Mes Hasta", "AL MES"],
+            "AnioHasta": ["Al Año", "Año Hasta", "AL AÑO"],
+            "elementos": ["Tipo de Pruebas", "Elementos", "ELEMENTOS"],
+            "otros": ["Otros", "OTROS", "Detalle Otros"],
+
+            # SECCIÓN 3: Identificación del denunciante
+            "dpto": ["Departamento", "DEPARTAMENTO"],
+            "prov": ["Provincia", "PROVINCIA"],
+            "dist": ["Distrito", "DISTRITO"],
+            "telefono": ["Teléfono", "TELEFONO", "Telefono"],
+            "correo": ["Correo", "CORREO", "Email", "Correo Electrónico"],
+            "tipvia": ["Tipo Vía", "Vía", "TIPO VIA"],
+            "nomvia": ["Nombre Vía", "Nombre de Vía", "NOMBRE VIA"]
+        }
+
+        # ═══════════════════════════════════════
+        # INTENTO 1: JavaScript en todos los iframes
+        # ═══════════════════════════════════════
+        self.log("  → Intento 1: JavaScript en iframes...")
+        try:
+            resultado = self.buscar_con_javascript(nombre_campo, tipo_elemento)
+            if resultado:
+                self.log("  ✅ Encontrado con JavaScript")
+                return resultado
+        except Exception as e:
+            self.log(f"  → JavaScript falló: {str(e)[:50]}")
+
+        # ═══════════════════════════════════════
+        # INTENTO 2: Selenium recursivo por selector
+        # ═══════════════════════════════════════
+        self.log("  → Intento 2: Selenium recursivo por selector...")
+        try:
+            resultado = self.buscar_en_todos_contextos_recursivo(By.NAME, nombre_campo)
+            if resultado:
+                self.log("  ✅ Encontrado con Selenium recursivo (by NAME)")
+                return resultado
+        except Exception as e:
+            self.log(f"  → Selenium recursivo falló: {str(e)[:50]}")
+
+        # También probar por ID si el nombre coincide
+        self.log("  → Intento 2b: Selenium recursivo por ID...")
+        try:
+            resultado = self.buscar_en_todos_contextos_recursivo(By.ID, nombre_campo)
+            if resultado:
+                self.log("  ✅ Encontrado con Selenium recursivo (by ID)")
+                return resultado
+        except:
+            pass
+
+        # ═══════════════════════════════════════
+        # INTENTO 3: Por texto literal visible
+        # ═══════════════════════════════════════
+        if nombre_campo in mapeo_textos:
+            self.log("  → Intento 3: Búsqueda por texto literal...")
+            for texto in mapeo_textos[nombre_campo]:
+                try:
+                    resultado = self.buscar_por_texto_literal(texto, tipo_elemento)
+                    if resultado:
+                        self.log(f"  ✅ Encontrado por texto literal '{texto}'")
+                        return resultado
+                except:
+                    pass
+
+        # ═══════════════════════════════════════
+        # INTENTO 4: Método anterior (fallback)
+        # ═══════════════════════════════════════
+        self.log("  → Intento 4: Método híbrido anterior...")
+        try:
+            resultado = self.acceder_al_formulario_y_buscar_campo(nombre_campo)
+            if resultado:
+                self.log("  ✅ Encontrado con método híbrido anterior")
+                return resultado
+        except:
+            pass
+
+        self.log(f"  ❌ No se encontró '{nombre_campo}' con ningún método")
+        return None
+
+    def buscar_con_javascript(self, nombre_campo, tipo_elemento="input"):
+        """
+        🌐 Busca elemento usando JavaScript que accede a todos los iframes
+        """
+        script = """
+        function buscarEnTodosLosContextos(nombreCampo, tipoElemento) {
+            // Buscar en documento principal
+            var elemento = document.querySelector('[name="' + nombreCampo + '"]') ||
+                          document.getElementById(nombreCampo);
+            if (elemento) return elemento;
+
+            // Buscar en todos los iframes
+            var iframes = document.querySelectorAll('iframe, frame');
+            for (var i = 0; i < iframes.length; i++) {
+                try {
+                    var iframeDoc = iframes[i].contentDocument || iframes[i].contentWindow.document;
+
+                    // Buscar directo en este iframe
+                    elemento = iframeDoc.querySelector('[name="' + nombreCampo + '"]') ||
+                              iframeDoc.getElementById(nombreCampo);
+                    if (elemento) return elemento;
+
+                    // Buscar en frames anidados dentro del iframe
+                    var framesInternos = iframeDoc.querySelectorAll('iframe, frame');
+                    for (var j = 0; j < framesInternos.length; j++) {
+                        try {
+                            var frameDoc = framesInternos[j].contentDocument ||
+                                          framesInternos[j].contentWindow.document;
+                            elemento = frameDoc.querySelector('[name="' + nombreCampo + '"]') ||
+                                      frameDoc.getElementById(nombreCampo);
+                            if (elemento) return elemento;
+                        } catch(e) {}
+                    }
+                } catch(e) {
+                    // Error de Same-Origin, continuar con siguiente iframe
+                }
+            }
+            return null;
+        }
+        return buscarEnTodosLosContextos(arguments[0], arguments[1]);
+        """
+
+        try:
+            elemento = self.driver.execute_script(script, nombre_campo, tipo_elemento)
+            return elemento
+        except Exception as e:
+            return None
+
+    def buscar_en_todos_contextos_recursivo(self, by, valor, max_profundidad=3):
+        """
+        🔄 Busca elemento de forma RECURSIVA en todos los iframes/frames
+        Cuando encuentra el elemento, SE QUEDA en ese contexto.
+        """
+        self.driver.switch_to.default_content()
+
+        def buscar_recursivo(profundidad=0):
+            if profundidad > max_profundidad:
+                return None
+
+            # Buscar en contexto actual
+            try:
+                elemento = self.driver.find_element(by, valor)
+                if elemento.is_displayed() or elemento.is_enabled():
+                    return elemento
+            except:
+                pass
+
+            # Buscar en cada iframe/frame hijo
+            frames = []
+            try:
+                frames = self.driver.find_elements(By.TAG_NAME, "iframe")
+                frames += self.driver.find_elements(By.TAG_NAME, "frame")
+            except:
+                pass
+
+            for i, frame in enumerate(frames):
+                try:
+                    self.driver.switch_to.frame(frame)
+                    resultado = buscar_recursivo(profundidad + 1)
+                    if resultado:
+                        return resultado  # ¡Mantener contexto!
+                    self.driver.switch_to.parent_frame()
+                except:
+                    try:
+                        self.driver.switch_to.parent_frame()
+                    except:
+                        self.driver.switch_to.default_content()
+
+            return None
+
+        return buscar_recursivo()
+
+    def buscar_por_texto_literal(self, texto_buscar, tipo_elemento="input"):
+        """
+        📝 Busca elemento por el texto visible literal (ej: "Tipo Documento")
+        Busca en todos los contextos de forma recursiva.
+        """
+        self.driver.switch_to.default_content()
+
+        # XPaths para buscar por texto visible
+        xpaths = [
+            # Buscar label/td con texto y luego el input/select siguiente
+            f"//td[contains(text(), '{texto_buscar}')]/following::*[self::input or self::select or self::button][1]",
+            f"//td[contains(text(), '{texto_buscar}')]//following-sibling::td//{tipo_elemento}",
+            f"//label[contains(text(), '{texto_buscar}')]/following::*[self::input or self::select][1]",
+            f"//th[contains(text(), '{texto_buscar}')]/following::*[self::input or self::select][1]",
+            # Para botones
+            f"//input[@value='{texto_buscar}']",
+            f"//button[contains(text(), '{texto_buscar}')]",
+            f"//input[contains(@value, '{texto_buscar}')]",
+        ]
+
+        def buscar_en_contexto():
+            for xpath in xpaths:
+                try:
+                    elemento = self.driver.find_element(By.XPATH, xpath)
+                    if elemento.is_displayed() or elemento.is_enabled():
+                        return elemento
+                except:
+                    pass
+            return None
+
+        def buscar_recursivo(profundidad=0):
+            if profundidad > 3:
+                return None
+
+            # Buscar en contexto actual
+            resultado = buscar_en_contexto()
+            if resultado:
+                return resultado
+
+            # Buscar en frames hijos
+            frames = []
+            try:
+                frames = self.driver.find_elements(By.TAG_NAME, "iframe")
+                frames += self.driver.find_elements(By.TAG_NAME, "frame")
+            except:
+                pass
+
+            for frame in frames:
+                try:
+                    self.driver.switch_to.frame(frame)
+                    resultado = buscar_recursivo(profundidad + 1)
+                    if resultado:
+                        return resultado
+                    self.driver.switch_to.parent_frame()
+                except:
+                    try:
+                        self.driver.switch_to.parent_frame()
+                    except:
+                        self.driver.switch_to.default_content()
+
+            return None
+
+        return buscar_recursivo()
+
+    def llenar_campo_universal(self, nombre_campo, valor, tipo_elemento="input"):
+        """
+        ✏️ Llena un campo usando el método universal de búsqueda
+        """
+        self.log(f"\n  ✏️ Llenando campo '{nombre_campo}' con valor '{valor}'")
+
+        elemento = self.buscar_elemento_universal(nombre_campo, tipo_elemento)
+        if not elemento:
+            self.log(f"  ❌ No se encontró el campo '{nombre_campo}'")
+            return False
+
+        try:
+            if tipo_elemento == "select":
+                return self._llenar_select_inteligente(elemento, valor, nombre_campo)
+            else:
+                # Input normal
+                try:
+                    elemento.clear()
+                    time.sleep(0.2)
+                    elemento.send_keys(valor)
+                    self.log(f"  ✅ Valor ingresado: '{valor}'")
+                    return True
+                except:
+                    # Fallback JavaScript
+                    self.driver.execute_script(f"arguments[0].value = '{valor}';", elemento)
+                    self.log(f"  ✅ Valor ingresado (JS): '{valor}'")
+                    return True
+
+        except Exception as e:
+            self.log(f"  ❌ Error al llenar campo: {str(e)[:50]}")
+            return False
+
+    def llenar_campo_con_espera_robusta(self, nombre_campo, valor, tipo_elemento="input", timeout=20):
+        """
+        🚀 Método ROBUSTO para llenar campos con espera extendida y múltiples estrategias
+
+        Similar al patrón usado para encontrar el campo 'modalidad' en Sección 2.
+        Usa 4 estrategias diferentes con timeout configurable.
+
+        Args:
+            nombre_campo: nombre del campo (name attribute)
+            valor: valor a llenar
+            tipo_elemento: "input", "select", etc.
+            timeout: segundos de espera (default 20)
+        """
+        self.log(f"\n  🚀 Llenando campo '{nombre_campo}' (modo robusto)...")
+        elemento_encontrado = False
+
+        # INTENTO 1: Búsqueda directa por NAME con espera extendida
+        try:
+            self.log(f"    → Intento 1: Búsqueda directa por NAME ({timeout}s espera)...")
+            wait = WebDriverWait(self.driver, timeout)
+            elemento = wait.until(
+                EC.presence_of_element_located((By.NAME, nombre_campo))
+            )
+            self.log(f"    ✅ Campo '{nombre_campo}' encontrado (búsqueda directa)")
+            elemento_encontrado = True
+        except Exception as e:
+            self.log(f"    ⚠️ Intento 1 falló: {str(e)[:50]}")
+
+        # INTENTO 2: Verificar usando JavaScript
+        if not elemento_encontrado:
+            try:
+                self.log("    → Intento 2: Verificación con JavaScript...")
+                resultado = self.driver.execute_script(f"""
+                    var campo = document.getElementsByName('{nombre_campo}')[0];
+                    if (campo) {{
+                        return true;
+                    }}
+                    return false;
+                """)
+                if resultado:
+                    self.log(f"    ✅ Campo '{nombre_campo}' encontrado (JavaScript)")
+                    elemento_encontrado = True
+            except Exception as e:
+                self.log(f"    ⚠️ Intento 2 falló: {str(e)[:50]}")
+
+        # INTENTO 3: Usar método universal (con todas sus estrategias)
+        if not elemento_encontrado:
+            try:
+                self.log("    → Intento 3: Usando buscar_elemento_universal...")
+                elemento_test = self.buscar_elemento_universal(nombre_campo, tipo_elemento)
+                if elemento_test:
+                    self.log(f"    ✅ Campo '{nombre_campo}' encontrado (método universal)")
+                    elemento_encontrado = True
+            except Exception as e:
+                self.log(f"    ⚠️ Intento 3 falló: {str(e)[:50]}")
+
+        if not elemento_encontrado:
+            self.log(f"    ❌ No se encontró el campo '{nombre_campo}' después de 3 intentos")
+            return False
+
+        # Ahora llenar el campo usando el método estándar
+        self.log(f"    → Llenando campo con valor: '{valor}'...")
+        resultado = self.llenar_campo_universal(nombre_campo, valor, tipo_elemento)
+
+        if resultado:
+            self.log(f"    ✅ Campo '{nombre_campo}' llenado exitosamente")
+        else:
+            self.log(f"    ❌ No se pudo llenar el campo '{nombre_campo}'")
+
+        return resultado
+
+    def _llenar_select_inteligente(self, elemento, valor, nombre_campo):
+        """
+        🎯 Rellena un SELECT con búsqueda inteligente y flexible
+
+        Estrategias en orden:
+        1. Coincidencia exacta
+        2. Coincidencia exacta ignorando mayúsculas
+        3. Valor del Excel contenido en opción
+        4. Opción contenida en valor del Excel
+        5. Similitud por palabras clave
+        6. Búsqueda de palabras parciales
+
+        Si no encuentra, muestra TODAS las opciones disponibles
+        """
+        select = Select(elemento)
+        opciones = select.options
+
+        # Obtener lista de textos de opciones (excluyendo vacías)
+        opciones_texto = [(i, op.text.strip()) for i, op in enumerate(opciones) if op.text.strip()]
+
+        self.log(f"  📋 Campo '{nombre_campo}' tiene {len(opciones_texto)} opciones disponibles")
+
+        valor_buscar = str(valor).strip()
+        valor_upper = valor_buscar.upper()
+        valor_lower = valor_buscar.lower()
+
+        # ═══════════════════════════════════════════════════════════
+        # ESTRATEGIA 1: Coincidencia EXACTA
+        # ═══════════════════════════════════════════════════════════
+        for idx, texto in opciones_texto:
+            if texto == valor_buscar:
+                select.select_by_visible_text(texto)
+                self.log(f"  ✅ Seleccionado (exacto): '{texto}'")
+                return True
+
+        # ═══════════════════════════════════════════════════════════
+        # ESTRATEGIA 2: Coincidencia exacta SIN MAYÚSCULAS
+        # ═══════════════════════════════════════════════════════════
+        for idx, texto in opciones_texto:
+            if texto.upper() == valor_upper:
+                select.select_by_visible_text(texto)
+                self.log(f"  ✅ Seleccionado (sin mayúsculas): '{texto}'")
+                return True
+
+        # ═══════════════════════════════════════════════════════════
+        # ESTRATEGIA 3: Valor del Excel CONTENIDO en opción
+        # Ejemplo: Excel="DNI" → Opción="6 - DNI"
+        # ═══════════════════════════════════════════════════════════
+        for idx, texto in opciones_texto:
+            if valor_upper in texto.upper():
+                select.select_by_visible_text(texto)
+                self.log(f"  ✅ Seleccionado (contenido): '{texto}' contiene '{valor_buscar}'")
+                return True
+
+        # ═══════════════════════════════════════════════════════════
+        # ESTRATEGIA 4: Opción CONTENIDA en valor del Excel
+        # Ejemplo: Excel="DOCUMENTO NACIONAL DE IDENTIDAD" → Opción="DNI"
+        # ═══════════════════════════════════════════════════════════
+        for idx, texto in opciones_texto:
+            if texto.upper() in valor_upper:
+                select.select_by_visible_text(texto)
+                self.log(f"  ✅ Seleccionado (inverso): '{valor_buscar}' contiene '{texto}'")
+                return True
+
+        # ═══════════════════════════════════════════════════════════
+        # ESTRATEGIA 5: Búsqueda por PALABRAS CLAVE
+        # Divide el valor en palabras y busca coincidencias
+        # ═══════════════════════════════════════════════════════════
+        palabras_valor = [p.strip().upper() for p in valor_buscar.split() if len(p.strip()) > 2]
+
+        if palabras_valor:
+            mejor_coincidencia = None
+            max_coincidencias = 0
+
+            for idx, texto in opciones_texto:
+                texto_upper = texto.upper()
+                coincidencias = sum(1 for palabra in palabras_valor if palabra in texto_upper)
+
+                if coincidencias > max_coincidencias:
+                    max_coincidencias = coincidencias
+                    mejor_coincidencia = (idx, texto)
+
+            if mejor_coincidencia and max_coincidencias > 0:
+                select.select_by_visible_text(mejor_coincidencia[1])
+                self.log(f"  ✅ Seleccionado (palabras clave, {max_coincidencias} coincidencias): '{mejor_coincidencia[1]}'")
+                return True
+
+        # ═══════════════════════════════════════════════════════════
+        # ESTRATEGIA 6: Búsqueda PARCIAL por caracteres
+        # Busca si los primeros caracteres coinciden
+        # ═══════════════════════════════════════════════════════════
+        if len(valor_buscar) >= 3:
+            prefijo = valor_upper[:3]
+            for idx, texto in opciones_texto:
+                if texto.upper().startswith(prefijo):
+                    select.select_by_visible_text(texto)
+                    self.log(f"  ✅ Seleccionado (prefijo '{prefijo}'): '{texto}'")
+                    return True
+
+        # ═══════════════════════════════════════════════════════════
+        # NO ENCONTRADO: Mostrar TODAS las opciones disponibles
+        # ═══════════════════════════════════════════════════════════
+        self.log(f"  ❌ No se encontró coincidencia para '{valor_buscar}'")
+        self.log(f"  📋 Opciones disponibles en el SELECT:")
+        for idx, texto in opciones_texto[:20]:  # Mostrar máximo 20 opciones
+            self.log(f"     [{idx}] {texto}")
+
+        if len(opciones_texto) > 20:
+            self.log(f"     ... y {len(opciones_texto) - 20} opciones más")
+
+        # Seleccionar primera opción válida como fallback
+        if len(opciones_texto) > 1:
+            idx_fallback, texto_fallback = opciones_texto[1]  # Ignorar opción 0 (suele ser vacía)
+            select.select_by_visible_text(texto_fallback)
+            self.log(f"  ⚠️ Seleccionado PRIMERA opción por defecto: '{texto_fallback}'")
+            return True
+
+        return False
+
+    def clic_boton_universal(self, nombre_boton):
+        """
+        🖱️ Hace clic en un botón usando múltiples métodos
+        """
+        self.log(f"\n  🖱️ Haciendo clic en botón '{nombre_boton}'")
+
+        # Mapeo de nombres a textos/funciones
+        mapeo_botones = {
+            "buscar": {
+                "textos": ["Buscar", "BUSCAR"],
+                "ids": ["buscar"],
+                "funciones_js": ["clickbtn_buscar()"]
+            },
+            "siguiente": {
+                "textos": ["Siguiente", "SIGUIENTE", "Validar"],
+                "ids": ["siguiente", "btnSiguiente"],
+                "funciones_js": ["clickbtn_validar()"]
+            },
+            "registro": {
+                "textos": ["Registro", "REGISTRO"],
+                "ids": ["registro"],
+                "funciones_js": ["clickbtn_registro()"]
+            }
+        }
+
+        config = mapeo_botones.get(nombre_boton.lower(), {
+            "textos": [nombre_boton],
+            "ids": [nombre_boton],
+            "funciones_js": []
+        })
+
+        # INTENTO 1: Buscar por ID
+        for id_boton in config.get("ids", []):
+            try:
+                elemento = self.buscar_elemento_universal(id_boton, "button")
+                if elemento:
+                    # Usar método robusto de clic con múltiples estrategias
+                    if self.hacer_clic_robusto(elemento, f"botón '{nombre_boton}'", max_intentos=2):
+                        self.log(f"  ✅ Clic exitoso (por ID)")
+                        return True
+            except Exception as e:
+                self.log(f"  ⚠️ Intento por ID falló: {str(e)[:50]}")
+                pass
+
+        # INTENTO 2: Buscar por texto literal
+        for texto in config.get("textos", []):
+            try:
+                elemento = self.buscar_por_texto_literal(texto, "button")
+                if elemento:
+                    # Usar método robusto de clic
+                    if self.hacer_clic_robusto(elemento, f"botón '{texto}'", max_intentos=2):
+                        self.log(f"  ✅ Clic exitoso (por texto '{texto}')")
+                        return True
+            except Exception as e:
+                self.log(f"  ⚠️ Intento por texto '{texto}' falló: {str(e)[:50]}")
+                pass
+
+        # INTENTO 3: Ejecutar función JavaScript directamente
+        for func_js in config.get("funciones_js", []):
+            try:
+                self.driver.execute_script(func_js)
+                self.log(f"  ✅ Función JS ejecutada: {func_js}")
+                return True
+            except:
+                pass
+
+        # INTENTO 4: Buscar por XPath con onclick
+        xpaths_onclick = [
+            f"//input[@onclick='clickbtn_{nombre_boton.lower()}()']",
+            f"//button[@onclick='clickbtn_{nombre_boton.lower()}()']",
+            f"//input[contains(@onclick, '{nombre_boton.lower()}')]",
+        ]
+
+        for xpath in xpaths_onclick:
+            try:
+                self.driver.switch_to.default_content()
+                # Buscar recursivamente
+                def buscar_boton_recursivo(profundidad=0):
+                    if profundidad > 3:
+                        return None
+                    try:
+                        elem = self.driver.find_element(By.XPATH, xpath)
+                        return elem
+                    except:
+                        pass
+
+                    frames = self.driver.find_elements(By.TAG_NAME, "iframe") + \
+                             self.driver.find_elements(By.TAG_NAME, "frame")
+                    for frame in frames:
+                        try:
+                            self.driver.switch_to.frame(frame)
+                            resultado = buscar_boton_recursivo(profundidad + 1)
+                            if resultado:
+                                return resultado
+                            self.driver.switch_to.parent_frame()
+                        except:
+                            pass
+                    return None
+
+                elemento = buscar_boton_recursivo()
+                if elemento:
+                    self.driver.execute_script("arguments[0].click();", elemento)
+                    self.log(f"  ✅ Clic exitoso (por onclick)")
+                    return True
+            except:
+                pass
+
+        self.log(f"  ❌ No se pudo hacer clic en '{nombre_boton}'")
+        return False
+
+    def _verificar_dentro_iframe(self):
+        """
+        Verifica si estamos dentro del iframe correcto buscando elementos del formulario.
+
+        Returns:
+            True si estamos en el iframe correcto, False en caso contrario
+        """
+        try:
+            # Buscar el campo tipodoc
+            campo = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "tipodoc"))
+            )
+            self.log("      ✓ Campo 'tipodoc' encontrado")
+            return True
+        except:
+            # Intentar buscar el formulario
+            try:
+                form = self.driver.find_element(By.NAME, "registroden")
+                self.log("      ✓ Formulario 'registroden' encontrado")
+                return True
+            except:
+                return False
+
+    def hacer_login(self):
+        try:
+            self.log("Realizando login...")
+            self.driver.get(self.URL_LOGIN)
+            time.sleep(2)
+            
+            # Usuario
+            campo_usuario = self.wait.until(
+                EC.presence_of_element_located((By.NAME, "cuenta"))
+            )
+            campo_usuario.clear()
+            campo_usuario.send_keys(self.USUARIO)
+            
+            # Password
+            campo_password = self.driver.find_element(By.NAME, "password")
+            campo_password.clear()
+            campo_password.send_keys(self.PASSWORD)
+            
+            # Click Iniciar Sesion
+            boton_login = self.driver.find_element(By.XPATH, "//input[@onclick='validaIA()']")
+            boton_login.click()
+            
+            time.sleep(3)
+            self.log("✅ Login exitoso")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error en login: {str(e)}")
+            return False
+    
+    def navegar_a_formulario_registro(self):
+        """
+        FUNCIÓN CORREGIDA - Flujo real del sistema SUNAT
+
+        Flujo correcto:
+        1. Ventana principal → Clic en "Tributarios" → Clic en "Denuncias"
+        2. Se abre NUEVA VENTANA (menuS03Alias) con nivel2 "Denuncias" YA DESPLEGADO
+        3. En el menú lateral de la nueva ventana:
+           - Expandir nivel3 "Denuncias" (id="nivel3_5_5_2_1")
+           - Clic en nivel4 "Registro de Denuncias" (id="nivel4_5_5_2_10")
+        4. El formulario se carga EN LA MISMA PESTAÑA al lado derecho (iframe)
+        """
+        try:
+            self.log("Navegando al formulario...")
+
+            wait_largo = WebDriverWait(self.driver, 30)
+            ventana_original = self.driver.current_window_handle
+            ventanas_iniciales = len(self.driver.window_handles)
+
+            # ═══ PASO 1: Click en "Tributarios" ═══
+            self.log("  → Paso 1: Buscando 'Tributarios'...")
+            try:
+                time.sleep(2)
+                link_tributarios = wait_largo.until(
+                    EC.element_to_be_clickable((By.LINK_TEXT, "Tributarios"))
+                )
+                self.log("  → Haciendo clic en 'Tributarios'...")
+                link_tributarios.click()
+                time.sleep(2)
+                self.log("  ✅ Clic en 'Tributarios' exitoso")
+            except Exception as e:
+                self.log(f"  ⚠️ 'Tributarios' no encontrado o no necesario: {str(e)}")
+
+            # ═══ PASO 2: Click en "Denuncias" - ABRE NUEVA VENTANA ═══
+            self.log("  → Paso 2: Buscando 'Denuncias' (abre nueva ventana)...")
+            try:
+                link_denuncias = wait_largo.until(
+                    EC.element_to_be_clickable((By.LINK_TEXT, "Denuncias"))
+                )
+                self.log("  → Haciendo clic en 'Denuncias'...")
+                link_denuncias.click()
+                time.sleep(3)
+                self.log("  ✅ Clic en 'Denuncias' - Esperando nueva ventana...")
+            except Exception as e:
+                self.log(f"  ❌ Error al hacer clic en 'Denuncias': {str(e)}")
+                raise
+
+            # ═══ PASO 3: Detectar y cambiar a la NUEVA VENTANA ═══
+            self.log("  → Paso 3: Detectando nueva ventana menuS03Alias...")
+            try:
+                # Esperar hasta que se abra una nueva ventana
+                wait_largo.until(lambda d: len(d.window_handles) > ventanas_iniciales)
+                time.sleep(2)
+
+                ventanas = self.driver.window_handles
+                self.log(f"  → {len(ventanas)} ventanas detectadas")
+
+                # Cambiar a la última ventana (la nueva)
+                nueva_ventana = ventanas[-1]
+                self.driver.switch_to.window(nueva_ventana)
+                time.sleep(2)
+
+                url_actual = self.driver.current_url
+                self.log(f"  ✅ Cambiado a nueva ventana: {url_actual}")
+
+                # Verificar que sea la ventana correcta (menuS03Alias)
+                if "menuS03Alias" not in url_actual:
+                    self.log(f"  ⚠️ URL no esperada: {url_actual}")
+                else:
+                    self.log(f"  ✅ Ventana correcta detectada (menuS03Alias)")
+
+            except Exception as e:
+                self.log(f"  ❌ Error al cambiar de ventana: {str(e)}")
+                raise
+
+            # NOTA: nivel2 "Denuncias" ya está desplegado automáticamente, no hacer clic
+
+            # ═══ PASO 4: Expandir nivel3 "Denuncias" (GARANTIZADO CON REINTENTOS) ═══
+            self.log("  → Paso 4: Expandiendo nivel3 'Denuncias' (id=nivel3_5_5_2_1)...")
+            nivel3_expandido = False
+
+            # Intentar múltiples estrategias para encontrar y hacer clic en nivel3
+            for intento_nivel3 in range(1, 4):
+                try:
+                    self.log(f"  → Intento {intento_nivel3}/3 para expandir nivel3...")
+
+                    # Estrategia 1: Por ID exacto
+                    try:
+                        nivel3_denuncias = wait_largo.until(
+                            EC.presence_of_element_located((By.ID, "nivel3_5_5_2_1"))
+                        )
+                        self.log(f"  → Nivel3 encontrado por ID")
+
+                        # Usar método robusto de clic
+                        if self.hacer_clic_robusto(nivel3_denuncias, "nivel3 'Denuncias'"):
+                            time.sleep(2)
+                            nivel3_expandido = True
+                            break
+                    except:
+                        self.log(f"  → Estrategia 1 falló (ID directo)")
+
+                    # Estrategia 2: Por XPATH con clase y data-id
+                    if not nivel3_expandido:
+                        try:
+                            nivel3_denuncias = wait_largo.until(
+                                EC.presence_of_element_located((
+                                    By.XPATH,
+                                    "//li[@class='nivel3 liOpcion opcionEmpresas opcionHuerfano' and @data-id='5_5_2_1']"
+                                ))
+                            )
+                            self.log(f"  → Nivel3 encontrado por XPATH")
+
+                            if self.hacer_clic_robusto(nivel3_denuncias, "nivel3 'Denuncias' (XPATH)"):
+                                time.sleep(2)
+                                nivel3_expandido = True
+                                break
+                        except:
+                            self.log(f"  → Estrategia 2 falló (XPATH)")
+
+                    # Estrategia 3: Por texto "Denuncias" en nivel3
+                    if not nivel3_expandido:
+                        try:
+                            nivel3_denuncias = wait_largo.until(
+                                EC.presence_of_element_located((
+                                    By.XPATH,
+                                    "//li[contains(@class, 'nivel3')]//span[text()='Denuncias']"
+                                ))
+                            )
+                            self.log(f"  → Nivel3 encontrado por texto")
+
+                            if self.hacer_clic_robusto(nivel3_denuncias, "nivel3 'Denuncias' (texto)"):
+                                time.sleep(2)
+                                nivel3_expandido = True
+                                break
+                        except:
+                            self.log(f"  → Estrategia 3 falló (texto)")
+
+                    # Estrategia 4: Búsqueda SIN selectores - iterando sobre elementos
+                    if not nivel3_expandido:
+                        try:
+                            self.log(f"  → Estrategia 4: Búsqueda nivel3 sin selectores...")
+
+                            # Obtener todos los elementos <li>
+                            todos_elementos = self.driver.find_elements(By.TAG_NAME, "li")
+
+                            for elem in todos_elementos:
+                                try:
+                                    # Obtener las clases del elemento
+                                    clases = elem.get_attribute("class") or ""
+                                    texto = elem.text.strip()
+
+                                    # Buscar elementos que sean nivel3 Y tengan texto "Denuncias"
+                                    if "nivel3" in clases and "Denuncias" in texto and len(texto) < 50:
+                                        self.log(f"  → Encontrado nivel3 con texto: '{texto}'")
+
+                                        if elem.is_displayed():
+                                            if self.hacer_clic_robusto(elem, "nivel3 'Denuncias' (sin selector)"):
+                                                time.sleep(2)
+                                                nivel3_expandido = True
+                                                break
+                                except:
+                                    continue
+
+                            if nivel3_expandido:
+                                self.log(f"  ✅ Nivel3 encontrado sin selectores")
+                                break
+                            else:
+                                self.log(f"  → Estrategia 4 falló")
+
+                        except Exception as e:
+                            self.log(f"  → Estrategia 4 falló: {str(e)}")
+
+                    if intento_nivel3 < 3:
+                        self.log(f"  ⚠️ Intento {intento_nivel3} falló, esperando antes de reintentar...")
+                        time.sleep(3)
+
+                except Exception as e:
+                    self.log(f"  ⚠️ Error en intento {intento_nivel3}: {str(e)}")
+                    if intento_nivel3 < 3:
+                        time.sleep(3)
+
+            if not nivel3_expandido:
+                # DEBUG: Mostrar opciones disponibles
+                self.log("  ❌ No se pudo expandir nivel3 después de todos los intentos")
+                try:
+                    self.log("  ℹ️ Listando opciones nivel3 disponibles:")
+                    opciones = self.driver.find_elements(By.XPATH, "//li[contains(@class, 'nivel3')]")
+                    for i, opc in enumerate(opciones[:10]):
+                        try:
+                            id_elem = opc.get_attribute("id")
+                            texto = opc.text.strip()
+                            self.log(f"     {i+1}. ID={id_elem} | Texto={texto}")
+                        except:
+                            pass
+                except:
+                    pass
+                raise Exception("FALLO CRÍTICO: No se pudo expandir nivel3 'Denuncias'")
+
+            self.log("  ✅ Nivel3 'Denuncias' expandido exitosamente")
+
+            # ═══ PASO 5: Clic en nivel4 "Registro de Denuncias" (GARANTIZADO CON REINTENTOS) ═══
+            self.log("  → Paso 5: Haciendo clic en 'Registro de Denuncias' (id=nivel4_5_5_2_10)...")
+            registro_clickeado = False
+
+            # Intentar múltiples estrategias para encontrar y hacer clic en "Registro de Denuncias"
+            for intento_registro in range(1, 4):
+                try:
+                    self.log(f"  → Intento {intento_registro}/3 para clic en 'Registro de Denuncias'...")
+
+                    # Estrategia 1: Por ID exacto
+                    try:
+                        registro_denuncias = wait_largo.until(
+                            EC.presence_of_element_located((By.ID, "nivel4_5_5_2_10"))
+                        )
+                        self.log(f"  → 'Registro de Denuncias' encontrado por ID")
+
+                        # Usar método robusto de clic
+                        if self.hacer_clic_robusto(registro_denuncias, "'Registro de Denuncias'"):
+                            time.sleep(3)
+                            registro_clickeado = True
+                            break
+                    except:
+                        self.log(f"  → Estrategia 1 falló (ID directo)")
+
+                    # Estrategia 2: Por XPATH con data-id
+                    if not registro_clickeado:
+                        try:
+                            registro_denuncias = wait_largo.until(
+                                EC.presence_of_element_located((
+                                    By.XPATH,
+                                    "//li[@class='nivel4 liOpcion opcionEmpresas opcionHuerfano subMenu' and @data-id='5.5.2.1.1']"
+                                ))
+                            )
+                            self.log(f"  → 'Registro de Denuncias' encontrado por XPATH")
+
+                            if self.hacer_clic_robusto(registro_denuncias, "'Registro de Denuncias' (XPATH)"):
+                                time.sleep(3)
+                                registro_clickeado = True
+                                break
+                        except:
+                            self.log(f"  → Estrategia 2 falló (XPATH)")
+
+                    # Estrategia 3: Por texto "Registro de Denuncias"
+                    if not registro_clickeado:
+                        try:
+                            registro_denuncias = wait_largo.until(
+                                EC.presence_of_element_located((
+                                    By.XPATH,
+                                    "//li[contains(@class, 'nivel4')]//span[text()='Registro de Denuncias']"
+                                ))
+                            )
+                            self.log(f"  → 'Registro de Denuncias' encontrado por texto")
+
+                            # Necesitamos hacer clic en el <li>, no en el <span>
+                            registro_li = registro_denuncias.find_element(By.XPATH, "..")
+                            if self.hacer_clic_robusto(registro_li, "'Registro de Denuncias' (texto)"):
+                                time.sleep(3)
+                                registro_clickeado = True
+                                break
+                        except:
+                            self.log(f"  → Estrategia 3 falló (texto)")
+
+                    # Estrategia 4: Buscar SIN selectores - solo por texto visible
+                    if not registro_clickeado:
+                        try:
+                            self.log(f"  → Estrategia 4: Búsqueda avanzada sin selectores...")
+
+                            # Obtener TODOS los elementos <li> del menú
+                            todos_elementos = self.driver.find_elements(By.TAG_NAME, "li")
+
+                            for elem in todos_elementos:
+                                try:
+                                    texto_elem = elem.text.strip()
+
+                                    # Buscar el que contenga exactamente "Registro de Denuncias"
+                                    if "Registro de Denuncias" in texto_elem and len(texto_elem) < 100:
+                                        self.log(f"  → Encontrado elemento con texto: '{texto_elem}'")
+
+                                        # Verificar que sea visible y clickeable
+                                        if elem.is_displayed():
+                                            if self.hacer_clic_robusto(elem, "'Registro de Denuncias' (búsqueda sin selector)"):
+                                                time.sleep(3)
+                                                registro_clickeado = True
+                                                break
+                                except:
+                                    continue
+
+                            if registro_clickeado:
+                                self.log(f"  ✅ 'Registro de Denuncias' encontrado sin selectores")
+                                break
+                            else:
+                                self.log(f"  → Estrategia 4 falló (búsqueda sin selector)")
+
+                        except Exception as e:
+                            self.log(f"  → Estrategia 4 falló: {str(e)}")
+
+                    # Estrategia 5: JavaScript para buscar por texto
+                    if not registro_clickeado:
+                        try:
+                            self.log(f"  → Estrategia 5: Búsqueda con JavaScript...")
+
+                            # Script JavaScript que busca el elemento por texto
+                            script = """
+                            var elementos = document.querySelectorAll('li');
+                            for (var i = 0; i < elementos.length; i++) {
+                                if (elementos[i].textContent.includes('Registro de Denuncias') &&
+                                    elementos[i].textContent.length < 100) {
+                                    return elementos[i];
+                                }
+                            }
+                            return null;
+                            """
+
+                            registro_elem = self.driver.execute_script(script)
+
+                            if registro_elem:
+                                self.log(f"  → 'Registro de Denuncias' encontrado con JavaScript")
+                                if self.hacer_clic_robusto(registro_elem, "'Registro de Denuncias' (JavaScript)"):
+                                    time.sleep(3)
+                                    registro_clickeado = True
+                                    break
+                            else:
+                                self.log(f"  → Estrategia 5 falló (JavaScript no encontró elemento)")
+
+                        except Exception as e:
+                            self.log(f"  → Estrategia 5 falló: {str(e)}")
+
+                    if intento_registro < 3:
+                        self.log(f"  ⚠️ Intento {intento_registro} falló, esperando antes de reintentar...")
+                        time.sleep(3)
+
+                except Exception as e:
+                    self.log(f"  ⚠️ Error en intento {intento_registro}: {str(e)}")
+                    if intento_registro < 3:
+                        time.sleep(3)
+
+            if not registro_clickeado:
+                # DEBUG: Mostrar opciones disponibles
+                self.log("  ❌ No se pudo hacer clic en 'Registro de Denuncias' después de todos los intentos")
+                try:
+                    self.log("  ℹ️ Listando opciones nivel4 disponibles:")
+                    opciones = self.driver.find_elements(By.XPATH, "//li[contains(@class, 'nivel4')]")
+                    for i, opc in enumerate(opciones[:10]):
+                        try:
+                            id_elem = opc.get_attribute("id")
+                            texto = opc.text.strip()
+                            self.log(f"     {i+1}. ID={id_elem} | Texto={texto}")
+                        except:
+                            pass
+                except:
+                    pass
+                raise Exception("FALLO CRÍTICO: No se pudo hacer clic en 'Registro de Denuncias'")
+
+            self.log("  ✅ Clic en 'Registro de Denuncias' exitoso")
+
+            # ═══ PASO OPCIONAL: PAUSA INTERACTIVA PARA DEBUGGING ═══
+            # ⚠️ FUNCIÓN DESACTIVADA - Ya se implementó la corrección
+            # Para ACTIVAR nuevamente si es necesario: Descomenta la siguiente línea
+            # self.pausa_interactiva_y_captura()
+
+            # ═══ PASO 6: Cambiar al iframe del formulario (ULTRA ROBUSTO) ═══
+            self.log("  → Paso 6: Cambiando al iframe del formulario...")
+
+            # Llamar al método especializado para cambiar al iframe (V2 CORREGIDA)
+            if not self.cambiar_a_iframe_formulario_v2():
+                raise Exception("No se pudo cargar el formulario en el iframe")
+
+            # ✅ Navegación exitosa
+            return True
+
+        except Exception as e:
+            self.log(f"❌ ERROR GENERAL EN NAVEGACIÓN: {str(e)}")
+            return False
+    
+    # ============================================
+    # SECCIÓN 1: IDENTIFICACIÓN DEL DENUNCIADO
+    # ============================================
+    
+    def diagnosticar_iframe_y_campos(self):
+        """
+        DIAGNÓSTICO COMPLETO - Verifica si estamos en el iframe y qué campos hay
+        """
+        self.log("\n" + "=" * 80)
+        self.log("🔍 DIAGNÓSTICO COMPLETO DEL IFRAME Y CAMPOS")
+        self.log("=" * 80)
+
+        # 1. Verificar contexto actual
+        try:
+            url = self.driver.current_url
+            self.log(f"\n1️⃣ URL ACTUAL: {url}")
+        except:
+            self.log(f"\n1️⃣ URL ACTUAL: No se pudo obtener")
+
+        # 2. Verificar si estamos en página principal o iframe
+        try:
+            # Si encontramos el menú de la izquierda, estamos en página principal
+            menu = self.driver.find_elements(By.XPATH, "//li[contains(@class, 'nivel')]")
+            if len(menu) > 0:
+                self.log(f"\n2️⃣ CONTEXTO: PÁGINA PRINCIPAL (se encontró menú con {len(menu)} elementos)")
+                self.log("   ⚠️ PROBLEMA: Estamos fuera del iframe!")
+            else:
+                self.log(f"\n2️⃣ CONTEXTO: Posiblemente dentro del iframe (no hay menú visible)")
+        except:
+            pass
+
+        # 3. Buscar formulario registroden
+        try:
+            form = self.driver.find_element(By.NAME, "registroden")
+            self.log(f"\n3️⃣ FORMULARIO 'registroden': ✅ ENCONTRADO")
+            self.log(f"   → Estamos DENTRO del iframe correcto")
+        except:
+            self.log(f"\n3️⃣ FORMULARIO 'registroden': ❌ NO ENCONTRADO")
+            self.log(f"   → NO estamos en el iframe del formulario")
+
+        # 4. Buscar select tipodoc
+        try:
+            select_elem = self.driver.find_element(By.NAME, "tipodoc")
+            self.log(f"\n4️⃣ SELECT 'tipodoc': ✅ ENCONTRADO")
+
+            select_obj = Select(select_elem)
+            opciones = select_obj.options
+            self.log(f"   → Total de opciones: {len(opciones)}")
+            self.log(f"   → Opciones disponibles:")
+            for i, opt in enumerate(opciones[:8]):
+                val = opt.get_attribute("value")
+                txt = opt.text.strip()
+                self.log(f"      [{i}] value='{val}' | text='{txt}'")
+        except Exception as e:
+            self.log(f"\n4️⃣ SELECT 'tipodoc': ❌ NO ENCONTRADO")
+            self.log(f"   Error: {str(e)}")
+
+        # 5. Buscar input numdoc
+        try:
+            input_elem = self.driver.find_element(By.NAME, "numdoc")
+            self.log(f"\n5️⃣ INPUT 'numdoc': ✅ ENCONTRADO")
+            tipo = input_elem.get_attribute("type")
+            max_len = input_elem.get_attribute("maxlength")
+            self.log(f"   → type='{tipo}', maxlength='{max_len}'")
+        except Exception as e:
+            self.log(f"\n5️⃣ INPUT 'numdoc': ❌ NO ENCONTRADO")
+            self.log(f"   Error: {str(e)}")
+
+        # 6. Buscar botón buscar
+        try:
+            btn = self.driver.find_element(By.ID, "buscar")
+            self.log(f"\n6️⃣ BOTÓN 'buscar': ✅ ENCONTRADO")
+            visible = btn.is_displayed()
+            enabled = btn.is_enabled()
+            self.log(f"   → Visible: {visible}, Enabled: {enabled}")
+        except Exception as e:
+            self.log(f"\n6️⃣ BOTÓN 'buscar': ❌ NO ENCONTRADO")
+            self.log(f"   Error: {str(e)}")
+
+        # 7. Listar TODOS los iframes disponibles en página principal
+        try:
+            self.driver.switch_to.default_content()  # Volver a página principal
+            iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+            self.log(f"\n7️⃣ IFRAMES EN PÁGINA PRINCIPAL: {len(iframes)} encontrados")
+            for i, ifr in enumerate(iframes):
+                iframe_id = ifr.get_attribute("id") or "sin_id"
+                iframe_name = ifr.get_attribute("name") or "sin_name"
+                iframe_src = ifr.get_attribute("src") or "sin_src"
+                visible = "VISIBLE" if ifr.is_displayed() else "OCULTO"
+                self.log(f"   [{i}] ID='{iframe_id}', NAME='{iframe_name}'")
+                self.log(f"        SRC='{iframe_src[:80]}'")
+                self.log(f"        Estado: {visible}")
+        except Exception as e:
+            self.log(f"\n7️⃣ ERROR listando iframes: {str(e)}")
+
+        self.log("\n" + "=" * 80)
+        self.log("FIN DEL DIAGNÓSTICO")
+        self.log("=" * 80)
+
+    def llenar_seccion1_identificacion(self, datos):
+        """
+        🎯 MÉTODO DEFINITIVO - Usa los métodos UNIVERSALES de búsqueda
+
+        Combina TODOS los enfoques:
+        1. JavaScript en todos los iframes
+        2. Selenium recursivo en todos los contextos
+        3. Búsqueda por texto literal visible ("Tipo Documento", "Número", etc.)
+        4. Métodos anteriores como fallback
+        """
+        try:
+            self.log("="*70)
+            self.log("📝 SECCIÓN 1: IDENTIFICACIÓN DEL DENUNCIADO")
+            self.log("="*70)
+            self.log("🔄 Usando métodos UNIVERSALES de búsqueda...")
+
+            # ═══════════════════════════════════════
+            # PASO 1: TIPO DOCUMENTO (select)
+            # ═══════════════════════════════════════
+            self.log("\n📋 PASO 1/4: Tipo Documento")
+
+            if 'TIPO' not in datos or pd.isna(datos['TIPO']):
+                raise Exception("Dato 'TIPO' requerido no encontrado")
+
+            valor_tipo = str(datos['TIPO']).strip()
+            self.log(f"   📥 Valor desde Excel: '{valor_tipo}'")
+
+            # Usar método UNIVERSAL para llenar el select
+            if not self.llenar_campo_universal("tipodoc", valor_tipo, "select"):
+                raise Exception("No se pudo llenar campo 'tipodoc'")
+
+            time.sleep(0.5)
+
+            # ═══════════════════════════════════════
+            # PASO 2: NÚMERO (input)
+            # ═══════════════════════════════════════
+            self.log("\n📋 PASO 2/4: Número")
+
+            if 'NRO' not in datos or pd.isna(datos['NRO']):
+                raise Exception("Dato 'NRO' requerido no encontrado")
+
+            valor_numero = str(int(datos['NRO'])) if isinstance(datos['NRO'], float) else str(datos['NRO'])
+            valor_numero = valor_numero.strip()
+            self.log(f"   📥 Valor desde Excel: '{valor_numero}'")
+
+            # Usar método UNIVERSAL para llenar el input
+            if not self.llenar_campo_universal("numdoc", valor_numero, "input"):
+                raise Exception("No se pudo llenar campo 'numdoc'")
+
+            time.sleep(0.5)
+
+            # ═══════════════════════════════════════
+            # PASO 3: BOTÓN BUSCAR
+            # ═══════════════════════════════════════
+            self.log("\n📋 PASO 3/4: Botón Buscar")
+
+            # ESTRATEGIA: Ejecutar DIRECTAMENTE la función JavaScript del botón
+            # El clic normal de Selenium no dispara el evento onclick correctamente
+            clic_exitoso = False
+
+            # INTENTO 1: Ejecutar función JavaScript directamente
+            try:
+                self.log("   → Intento 1: Ejecutando función JavaScript clickbtn_buscar()...")
+                self.driver.execute_script("clickbtn_buscar();")
+                self.log("   ✅ Función JavaScript ejecutada correctamente")
+                clic_exitoso = True
+            except Exception as e:
+                self.log(f"   ⚠️ Falló ejecución directa de JS: {str(e)[:50]}")
+
+            # INTENTO 2: Buscar el botón y ejecutar su función onclick
+            if not clic_exitoso:
+                try:
+                    self.log("   → Intento 2: Buscando botón y ejecutando su onclick...")
+                    boton_buscar = self.driver.find_element(By.ID, "buscar")
+                    onclick_func = boton_buscar.get_attribute("onclick")
+                    if onclick_func:
+                        self.driver.execute_script(onclick_func)
+                        self.log("   ✅ Función onclick ejecutada")
+                        clic_exitoso = True
+                except Exception as e:
+                    self.log(f"   ⚠️ Falló ejecución onclick: {str(e)[:50]}")
+
+            # INTENTO 3: Clic con JavaScript en el elemento
+            if not clic_exitoso:
+                try:
+                    self.log("   → Intento 3: Clic JavaScript en elemento...")
+                    boton_buscar = self.driver.find_element(By.ID, "buscar")
+                    self.driver.execute_script("arguments[0].click();", boton_buscar)
+                    self.log("   ✅ Clic JavaScript ejecutado")
+                    clic_exitoso = True
+                except Exception as e:
+                    self.log(f"   ⚠️ Falló clic JS: {str(e)[:50]}")
+
+            # INTENTO 4: Método universal como último recurso
+            if not clic_exitoso:
+                try:
+                    self.log("   → Intento 4: Método universal...")
+                    if self.clic_boton_universal("buscar"):
+                        clic_exitoso = True
+                except:
+                    pass
+
+            if not clic_exitoso:
+                raise Exception("No se pudo hacer clic en botón Buscar después de 4 intentos")
+
+            # ESPERAR hasta que se carguen los datos automáticamente
+            self.log("   ⏳ Esperando a que se carguen los datos del denunciado...")
+
+            try:
+                # Esperar hasta que el campo de "Apellidos y Nombres" tenga contenido
+                # Este campo se llena automáticamente después de hacer clic en Buscar
+                wait_busqueda = WebDriverWait(self.driver, 10)
+
+                # Buscar el campo que contiene los apellidos/nombres (puede tener diferentes nombres)
+                campos_posibles = ["razonsocial", "nombre", "apellidos", "razon"]
+                campo_encontrado = False
+
+                for nombre_campo in campos_posibles:
+                    try:
+                        # Esperar a que el campo exista Y tenga contenido
+                        def campo_tiene_contenido(driver):
+                            try:
+                                campos = driver.find_elements(By.XPATH,
+                                    f"//input[contains(@name, '{nombre_campo}') or contains(@id, '{nombre_campo}')]")
+                                for campo in campos:
+                                    valor = campo.get_attribute("value")
+                                    if valor and len(valor.strip()) > 2:
+                                        return True
+                                return False
+                            except:
+                                return False
+
+                        if wait_busqueda.until(campo_tiene_contenido):
+                            self.log(f"   ✅ Datos cargados correctamente (campo '{nombre_campo}' tiene contenido)")
+                            campo_encontrado = True
+                            break
+                    except:
+                        continue
+
+                if not campo_encontrado:
+                    # Fallback: esperar que el select de Departamento tenga opciones
+                    try:
+                        def departamento_cargado(driver):
+                            try:
+                                dept = driver.find_element(By.NAME, "departamento")
+                                if dept.tag_name.lower() == "select":
+                                    select_dept = Select(dept)
+                                    return len(select_dept.options) > 1
+                                return False
+                            except:
+                                return False
+
+                        if wait_busqueda.until(departamento_cargado):
+                            self.log("   ✅ Datos cargados correctamente (departamento tiene opciones)")
+                            campo_encontrado = True
+                    except:
+                        pass
+
+                if not campo_encontrado:
+                    self.log("   ⚠️ No se pudo verificar la carga de datos, esperando 5 segundos adicionales...")
+                    time.sleep(5)
+                else:
+                    # Pequeña espera adicional para asegurar que todo esté cargado
+                    time.sleep(1)
+
+            except Exception as e:
+                self.log(f"   ⚠️ Error esperando carga: {str(e)}, continuando...")
+                time.sleep(3)
+
+            # ═══════════════════════════════════════
+            # PASO 4: BOTÓN SIGUIENTE
+            # ═══════════════════════════════════════
+            self.log("\n📋 PASO 4/4: Botón Siguiente")
+
+            # ESTRATEGIA: Ejecutar DIRECTAMENTE la función JavaScript del botón
+            clic_siguiente_exitoso = False
+
+            # INTENTO 1: Ejecutar función JavaScript directamente
+            try:
+                self.log("   → Intento 1: Ejecutando función JavaScript clickbtn_validar()...")
+                self.driver.execute_script("clickbtn_validar();")
+                self.log("   ✅ Función JavaScript ejecutada correctamente")
+                clic_siguiente_exitoso = True
+            except Exception as e:
+                self.log(f"   ⚠️ Falló ejecución directa de JS: {str(e)[:50]}")
+
+            # INTENTO 2: Buscar el botón y ejecutar su función onclick
+            if not clic_siguiente_exitoso:
+                try:
+                    self.log("   → Intento 2: Buscando botón 'siguiente' y ejecutando onclick...")
+                    boton_siguiente = self.driver.find_element(By.ID, "siguiente")
+                    onclick_func = boton_siguiente.get_attribute("onclick")
+                    if onclick_func:
+                        self.driver.execute_script(onclick_func)
+                        self.log("   ✅ Función onclick ejecutada")
+                        clic_siguiente_exitoso = True
+                except Exception as e:
+                    self.log(f"   ⚠️ Falló ejecución onclick: {str(e)[:50]}")
+
+            # INTENTO 3: Método universal
+            if not clic_siguiente_exitoso:
+                try:
+                    self.log("   → Intento 3: Método universal...")
+                    if self.clic_boton_universal("siguiente"):
+                        clic_siguiente_exitoso = True
+                except:
+                    pass
+
+            if not clic_siguiente_exitoso:
+                raise Exception("No se pudo hacer clic en botón Siguiente después de 3 intentos")
+
+            time.sleep(2)
+
+            self.log("\n" + "="*70)
+            self.log("✅✅✅ SECCIÓN 1 COMPLETADA ✅✅✅")
+            self.log("="*70)
+            return True
+
+        except Exception as e:
+            self.log(f"\n❌ ERROR EN SECCIÓN 1: {str(e)}")
+            return False
+
+    def _debug_formulario_seccion1(self):
+        """Debug exhaustivo del formulario de Sección 1"""
+        try:
+            self.log("\n🔍 DEBUG - Estado actual del formulario:")
+            self.log("-" * 70)
+
+            # Verificar contexto
+            try:
+                current_url = self.driver.current_url
+                self.log(f"   URL actual: {current_url}")
+            except:
+                self.log("   ⚠️ No se pudo obtener URL")
+
+            # Listar todos los selects
+            try:
+                selects = self.driver.find_elements(By.TAG_NAME, "select")
+                self.log(f"\n   📋 Total de SELECTs encontrados: {len(selects)}")
+                for i, sel in enumerate(selects[:5]):
+                    name = sel.get_attribute("name") or "sin_name"
+                    self.log(f"      [{i}] name='{name}'")
+
+                    if name == "tipodoc":
+                        select_obj = Select(sel)
+                        self.log(f"         Opciones:")
+                        for opt in select_obj.options[:8]:
+                            self.log(f"           - value='{opt.get_attribute('value')}' text='{opt.text.strip()}'")
+            except Exception as e:
+                self.log(f"   ⚠️ Error listando selects: {str(e)}")
+
+            # Listar todos los inputs
+            try:
+                inputs = self.driver.find_elements(By.TAG_NAME, "input")
+                self.log(f"\n   📋 Total de INPUTs encontrados: {len(inputs)}")
+                for i, inp in enumerate(inputs[:10]):
+                    name = inp.get_attribute("name") or "sin_name"
+                    tipo = inp.get_attribute("type") or "sin_tipo"
+                    value = inp.get_attribute("value") or ""
+                    self.log(f"      [{i}] name='{name}', type='{tipo}', value='{value[:30]}'")
+            except Exception as e:
+                self.log(f"   ⚠️ Error listando inputs: {str(e)}")
+
+            self.log("-" * 70)
+        except Exception as e:
+            self.log(f"⚠️ Error en debug: {str(e)}")
+    
+    # ============================================
+    # SECCIÓN 2: ATENCIÓN DE DENUNCIAS
+    # ============================================
+    
+    def llenar_seccion2_atencion_denuncias(self, datos):
+        try:
+            self.log("📝 Llenando Sección 2: ATENCIÓN DE DENUNCIAS...")
+
+            # PASO CRÍTICO: Verificar que la nueva sección cargó completamente
+            self.log("  → Verificando que la página cargó correctamente...")
+
+            # MÉTODO 1: Verificar que el título "ATENCIÓN DE DENUNCIAS" esté visible
+            try:
+                wait_titulo = WebDriverWait(self.driver, 20)
+                titulo_visible = wait_titulo.until(
+                    lambda d: "ATENCIÓN DE DENUNCIAS" in d.page_source
+                )
+                if titulo_visible:
+                    self.log("  ✅ Título 'ATENCIÓN DE DENUNCIAS' detectado")
+            except:
+                self.log("  ⚠️ No se detectó el título en 20 segundos")
+
+            # 5. Modalidad Evasión (Columna C) - USAR MÉTODO ROBUSTO
+            valor_seleccionado = None
+            if 'Modalidad de evasion' in datos and pd.notna(datos['Modalidad de evasion']):
+                valor = str(datos['Modalidad de evasion']).strip()
+                self.log(f"  → Modalidad: {valor[:50]}...")
+
+                # MÉTODO ROBUSTO: Búsqueda con múltiples estrategias y espera extendida
+                if self.llenar_campo_con_espera_robusta("modalidad", valor, "select", timeout=20):
+                    # Obtener el valor seleccionado para usar en submodalidad
+                    try:
+                        elemento_modalidad = self.buscar_elemento_universal("modalidad", "select")
+                        if elemento_modalidad:
+                            select_obj = Select(elemento_modalidad)
+                            valor_seleccionado = select_obj.first_selected_option.get_attribute("value")
+                    except:
+                        pass
+                    time.sleep(1)
+                else:
+                    raise Exception("No se pudo seleccionar Modalidad")
+            
+            # 6. Sub Modalidad (Columna D) - OPCIONAL
+            if 'Submodalidad' in datos and pd.notna(datos['Submodalidad']):
+                valor_sub = str(datos['Submodalidad']).strip()
+
+                if valor_sub != "" and valor_sub != "-":
+                    name_submodalidad = self.obtener_selector_submodalidad(valor_seleccionado)
+
+                    if name_submodalidad:
+                        # MÉTODO ROBUSTO para submodalidad
+                        if self.llenar_campo_con_espera_robusta(name_submodalidad, valor_sub, "select", timeout=15):
+                            self.log(f"  → Sub Modalidad: {valor_sub}")
+                            time.sleep(0.5)
+                        else:
+                            self.log(f"  ⚠️ No se pudo seleccionar Sub Modalidad")
+            
+            # 7. Tipo de Denuncia (Columna E) - Radio button con reintentos
+            if 'Tipo de denuncia' in datos and pd.notna(datos['Tipo de denuncia']):
+                valor = str(datos['Tipo de denuncia']).strip()
+                self.log(f"  → Tipo Denuncia: {valor}")
+
+                mapeo_tipo = {
+                    "telefónica": "1", "telefonica": "1",
+                    "verbal": "2",
+                    "escrita": "3",
+                    "formato electrónico": "4", "formato electronico": "4", "electronico": "4"
+                }
+
+                valor_radio = mapeo_tipo.get(valor.lower(), "4")
+
+                # Reintentos para hacer clic en radio button
+                for intento in range(1, 4):
+                    try:
+                        radio_button = self.driver.find_element(By.XPATH,
+                            f"//input[@name='rdoTipo' and @value='{valor_radio}']")
+                        self.driver.execute_script("arguments[0].click();", radio_button)
+                        self.log(f"    ✅ Radio button seleccionado (intento {intento})")
+                        time.sleep(0.5)
+                        break
+                    except Exception as e:
+                        if intento < 3:
+                            self.log(f"    ⚠️ Intento {intento} falló, reintentando...")
+                            time.sleep(1)
+                        else:
+                            self.log(f"    ⚠️ No se pudo seleccionar radio button después de 3 intentos")
+            
+            # 8. Fecha SID (Columna F) - CONDICIONAL
+            if 'Fecha SID' in datos and pd.notna(datos['Fecha SID']):
+                valor_raw = datos['Fecha SID']
+
+                if str(valor_raw).strip() != "":
+                    fecha_formateada = self.convertir_fecha_excel(valor_raw)
+
+                    if fecha_formateada:
+                        self.log(f"  → Fecha SID: {fecha_formateada}")
+                        # MÉTODO ROBUSTO para campo de fecha
+                        if not self.llenar_campo_con_espera_robusta("fecha_sid", fecha_formateada, "input", timeout=15):
+                            self.log(f"    ⚠️ No se pudo llenar Fecha SID")
+                        time.sleep(0.5)
+
+            # 9. Detalle (Columna G)
+            if 'Detalle de la denuncia' in datos and pd.notna(datos['Detalle de la denuncia']):
+                valor = str(datos['Detalle de la denuncia']).strip()
+
+                # Limitar longitud
+                if len(valor) > 1440:
+                    valor = valor[:1440]
+
+                self.log(f"  → Detalle: {valor[:50]}...")
+
+                # MÉTODO ROBUSTO para llenar campo de detalle
+                if not self.llenar_campo_con_espera_robusta("detalle", valor, "input", timeout=15):
+                    self.log(f"    ⚠️ No se pudo llenar Detalle")
+                time.sleep(0.5)
+            
+            # 10-11. Del Mes / Del Año (Columna H)
+            if 'Desde' in datos and pd.notna(datos['Desde']):
+                fecha_desde = self.extraer_mes_anio(datos['Desde'])
+
+                if fecha_desde:
+                    self.log(f"  → Del: {fecha_desde['mes']}/{fecha_desde['anio']}")
+
+                    # MÉTODO ROBUSTO para selects de fecha
+                    if self.llenar_campo_con_espera_robusta("MesDesde", fecha_desde['mes'], "select", timeout=15):
+                        self.log(f"    ✅ Mes Desde seleccionado")
+                    else:
+                        self.log(f"    ⚠️ No se pudo seleccionar Mes Desde")
+
+                    if self.llenar_campo_con_espera_robusta("AnioDesde", str(fecha_desde['anio']), "select", timeout=15):
+                        self.log(f"    ✅ Año Desde seleccionado")
+                    else:
+                        self.log(f"    ⚠️ No se pudo seleccionar Año Desde")
+
+                    time.sleep(0.5)
+
+            # 12-13. Al Mes / Al Año (Columna I)
+            if 'Hasta' in datos and pd.notna(datos['Hasta']):
+                fecha_hasta = self.extraer_mes_anio(datos['Hasta'])
+
+                if fecha_hasta:
+                    self.log(f"  → Al: {fecha_hasta['mes']}/{fecha_hasta['anio']}")
+
+                    # MÉTODO ROBUSTO para selects de fecha
+                    if self.llenar_campo_con_espera_robusta("MesHasta", fecha_hasta['mes'], "select", timeout=15):
+                        self.log(f"    ✅ Mes Hasta seleccionado")
+                    else:
+                        self.log(f"    ⚠️ No se pudo seleccionar Mes Hasta")
+
+                    if self.llenar_campo_con_espera_robusta("AnioHasta", str(fecha_hasta['anio']), "select", timeout=15):
+                        self.log(f"    ✅ Año Hasta seleccionado")
+                    else:
+                        self.log(f"    ⚠️ No se pudo seleccionar Año Hasta")
+
+                    time.sleep(0.5)
+            
+            # 14. Pruebas Ofrecidas (Columna J) - Radio buttons con reintentos
+            if 'PRUEBA' in datos and pd.notna(datos['PRUEBA']):
+                valor_prueba = str(datos['PRUEBA']).strip().upper()
+                self.log(f"  → Pruebas: {valor_prueba}")
+
+                if valor_prueba in ["NO", "N"]:
+                    # Reintentos para radio button NO
+                    for intento in range(1, 4):
+                        try:
+                            radio_no = self.driver.find_element(By.XPATH,
+                                "//input[@name='tipoPru' and @value='N']")
+                            self.driver.execute_script("arguments[0].click();", radio_no)
+                            self.log(f"    ✅ Radio 'NO' seleccionado")
+                            time.sleep(0.5)
+                            break
+                        except:
+                            if intento < 3:
+                                time.sleep(1)
+
+                elif valor_prueba in ["SI", "SÍ", "S"]:
+                    # Reintentos para radio button SI
+                    for intento in range(1, 4):
+                        try:
+                            radio_si = self.driver.find_element(By.XPATH,
+                                "//input[@name='tipoPru' and @value='S']")
+                            self.driver.execute_script("arguments[0].click();", radio_si)
+                            self.log(f"    ✅ Radio 'SI' seleccionado")
+                            time.sleep(1)
+                            break
+                        except:
+                            if intento < 3:
+                                time.sleep(1)
+
+                    # 15. Tipo de Pruebas (Columna K)
+                    if 'EN CASO DE SI' in datos and pd.notna(datos['EN CASO DE SI']):
+                        valor_tipo_prueba = str(datos['EN CASO DE SI']).strip()
+
+                        if valor_tipo_prueba != "" and valor_tipo_prueba != "-":
+                            self.log(f"    → Tipo Prueba: {valor_tipo_prueba}")
+
+                            # MÉTODO ROBUSTO para select de pruebas
+                            if self.llenar_campo_con_espera_robusta("elementos", valor_tipo_prueba, "select", timeout=15):
+                                time.sleep(0.5)
+
+                                # 16. Si es "Otros, detalle" (Columna L)
+                                if "otros" in valor_tipo_prueba.lower() and "detalle" in valor_tipo_prueba.lower():
+                                    if 'OTRO, DETALLE' in datos and pd.notna(datos['OTRO, DETALLE']):
+                                        valor_detalle = str(datos['OTRO, DETALLE']).strip()
+
+                                        if valor_detalle != "" and valor_detalle != "-":
+                                            self.log(f"    → Detalle Otros: {valor_detalle}")
+
+                                            # MÉTODO ROBUSTO para campo otros
+                                            if not self.llenar_campo_con_espera_robusta("otros", valor_detalle, "input", timeout=15):
+                                                self.log(f"      ⚠️ No se pudo llenar Detalle Otros")
+                                            time.sleep(0.5)
+                            else:
+                                self.log(f"    ⚠️ No se pudo seleccionar Tipo de Prueba")
+            
+            # 17. Siguiente - Ejecutar JavaScript directamente (MÉTODO QUE FUNCIONA)
+            self.log("  → Clic en 'Siguiente'...")
+
+            clic_siguiente_exitoso = False
+
+            # MÉTODO PRINCIPAL: Ejecutar función JavaScript directamente (✅ COMPROBADO QUE FUNCIONA)
+            try:
+                self.log("    → Ejecutando clickbtn_validar() con JavaScript...")
+                self.driver.execute_script("clickbtn_validar();")
+                self.log("    ✅ Función JavaScript ejecutada exitosamente")
+                clic_siguiente_exitoso = True
+            except Exception as e:
+                self.log(f"    ⚠️ Falló JS directo: {str(e)[:50]}")
+
+                # FALLBACK: Click con JavaScript en el elemento
+                try:
+                    self.log("    → Fallback: Click JS en elemento...")
+                    boton_siguiente = self.driver.find_element(By.XPATH,
+                        "//input[@onclick='clickbtn_validar()']")
+                    self.driver.execute_script("arguments[0].click();", boton_siguiente)
+                    self.log("    ✅ Click JS ejecutado")
+                    clic_siguiente_exitoso = True
+                except Exception as e2:
+                    self.log(f"    ⚠️ Falló fallback: {str(e2)[:50]}")
+
+            if not clic_siguiente_exitoso:
+                raise Exception("No se pudo hacer clic en Siguiente después de intentos")
+
+            # ESPERA AUMENTADA: La página necesita tiempo para cargar la nueva sección
+            self.log("  → Esperando carga de nueva sección (5 segundos)...")
+            time.sleep(5)
+
+            self.log("✅ Sección 2 completada")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error en Sección 2: {str(e)}")
+            return False
+    
+    # ============================================
+    # SECCIÓN 3: IDENTIFICACIÓN DEL DENUNCIANTE
+    # ============================================
+    
+    def llenar_seccion3_identificacion_denunciante(self, datos):
+        try:
+            self.log("📝 Llenando Sección 3: IDENTIFICACIÓN DEL DENUNCIANTE...")
+
+            # VERIFICACIÓN DE CARGA: Similar a Sección 2
+            self.log("  → Verificando que la página cargó correctamente...")
+
+            # Espera adicional para asegurar que la página está lista
+            time.sleep(2)
+
+            # 18. Tipo Denunciante (Columna M - segunda columna TIPO)
+            columnas_tipo = [col for col in datos.index if 'TIPO' in str(col).upper()]
+
+            if len(columnas_tipo) >= 2:
+                valor = str(datos[columnas_tipo[1]]).strip()
+            elif 'TIPO' in datos:
+                valor = str(datos['TIPO']).strip()
+            else:
+                valor = None
+
+            if valor:
+                self.log(f"  → Tipo Denunciante: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("tipodoc", valor, "select", timeout=20):
+                    self.log(f"    ⚠️ No se pudo seleccionar Tipo Denunciante")
+                time.sleep(0.5)
+
+            # 19. Número (Columna N)
+            if 'ruc denunciante' in datos and pd.notna(datos['ruc denunciante']):
+                valor = str(int(datos['ruc denunciante'])) if isinstance(datos['ruc denunciante'], float) else str(datos['ruc denunciante'])
+                self.log(f"  → RUC/DNI: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("numdoc", valor.strip(), "input", timeout=15):
+                    self.log(f"    ⚠️ No se pudo llenar Número")
+                time.sleep(0.5)
+
+            # 20. Teléfono (Columna O)
+            if 'teléfono' in datos and pd.notna(datos['teléfono']):
+                valor = str(int(datos['teléfono'])) if isinstance(datos['teléfono'], float) else str(datos['teléfono'])
+                self.log(f"  → Teléfono: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("telefono", valor.strip(), "input", timeout=15):
+                    self.log(f"    ⚠️ No se pudo llenar Teléfono")
+                time.sleep(0.5)
+
+            # 21. Correo (Columna P)
+            if 'correo electrónico' in datos and pd.notna(datos['correo electrónico']):
+                valor = str(datos['correo electrónico']).strip()
+                self.log(f"  → Correo: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("correo", valor, "input", timeout=15):
+                    self.log(f"    ⚠️ No se pudo llenar Correo")
+                time.sleep(0.5)
+
+            # 22. Departamento (Columna Q)
+            if 'Departamento' in datos and pd.notna(datos['Departamento']):
+                valor = str(datos['Departamento']).strip()
+                self.log(f"  → Departamento: {valor}")
+                # MÉTODO ROBUSTO con espera extra (puede cargar dinámicamente)
+                if not self.llenar_campo_con_espera_robusta("dpto", valor, "select", timeout=15):
+                    self.log(f"    ⚠️ No se pudo seleccionar Departamento")
+                time.sleep(1.5)  # Espera para carga de Provincia
+
+            # 23. Provincia (Columna R)
+            if 'Provincia' in datos and pd.notna(datos['Provincia']):
+                valor = str(datos['Provincia']).strip()
+                self.log(f"  → Provincia: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("prov", valor, "select", timeout=15):
+                    self.log(f"    ⚠️ No se pudo seleccionar Provincia")
+                time.sleep(1.5)  # Espera para carga de Distrito
+
+            # 24. Distrito (Columna S)
+            if 'Distrito' in datos and pd.notna(datos['Distrito']):
+                valor = str(datos['Distrito']).strip()
+                self.log(f"  → Distrito: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("dist", valor, "select", timeout=15):
+                    self.log(f"    ⚠️ No se pudo seleccionar Distrito")
+                time.sleep(0.5)
+
+            # 25. Vía (Columna T)
+            if 'Via' in datos and pd.notna(datos['Via']):
+                valor = str(datos['Via']).strip()
+                self.log(f"  → Vía: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("tipvia", valor, "select", timeout=15):
+                    self.log(f"    ⚠️ No se pudo seleccionar Vía")
+                time.sleep(0.5)
+
+            # 26. Nombre de Vía (Columna U)
+            if 'Relleno de Via' in datos and pd.notna(datos['Relleno de Via']):
+                valor = str(datos['Relleno de Via']).strip()
+                self.log(f"  → Nombre Vía: {valor}")
+                # MÉTODO ROBUSTO
+                if not self.llenar_campo_con_espera_robusta("nomvia", valor, "input", timeout=15):
+                    self.log(f"    ⚠️ No se pudo llenar Nombre Vía")
+                time.sleep(0.5)
+            
+            # 27. N°/Mzn./Km. (Columna V)
+            if 'N.°' in datos and pd.notna(datos['N.°']):
+                valor = str(datos['N.°']).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"  → N°/Mzn./Km.: {valor}")
+                    
+                    campo_numero = self.driver.find_element(By.NAME, "nro")
+                    campo_numero.clear()
+                    campo_numero.send_keys(valor)
+                    time.sleep(0.5)
+            
+            # 28. Dpto/Int (Columna W)
+            if 'Dpto' in datos and pd.notna(datos['Dpto']):
+                valor = str(datos['Dpto']).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"  → Dpto/Int: {valor}")
+                    
+                    campo_dpto = self.driver.find_element(By.NAME, "interior")
+                    campo_dpto.clear()
+                    campo_dpto.send_keys(valor)
+                    time.sleep(0.5)
+            
+            # 29. Zona (Columna X)
+            if 'Zona' in datos and pd.notna(datos['Zona']):
+                valor = str(datos['Zona']).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"  → Zona: {valor}")
+                    
+                    try:
+                        select_zona = Select(self.driver.find_element(By.NAME, "tipzona"))
+                        select_zona.select_by_visible_text(valor)
+                    except:
+                        pass
+                    
+                    time.sleep(0.5)
+            
+            # 30. GRABAR
+            self.log("  → Haciendo clic en 'Grabar'...")
+            boton_grabar = self.driver.find_element(By.XPATH, 
+                "//input[@onclick='clickbtn_validar()' and @name='btnsubmit']")
+            boton_grabar.click()
+            time.sleep(3)
+            
+            self.log("✅ Sección 3 completada - DENUNCIA GRABADA")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error en Sección 3: {str(e)}")
+            return False
+    
+    # ============================================
+    # FUNCIONES AUXILIARES
+    # ============================================
+    
+    def obtener_selector_submodalidad(self, valor_modalidad):
+        mapeo = {
+            "03000": "codigosubtrib1",
+            "04000": "codigosubtrib2",
+            "05000": "codigosubtrib3",
+            "06000": "codigosubtrib4",
+            "07000": "codigosubtrib5",
+            "11000": "codigosubtrib6",
+            "12000": "codigosubtrib7",
+        }
+        return mapeo.get(valor_modalidad, None)
+    
+    def convertir_fecha_excel(self, fecha):
+        try:
+            if isinstance(fecha, (int, float)):
+                fecha_base = datetime(1899, 12, 30)
+                fecha_real = fecha_base + timedelta(days=int(fecha))
+                return fecha_real.strftime('%d/%m/%Y')
+            elif isinstance(fecha, pd.Timestamp):
+                return fecha.strftime('%d/%m/%Y')
+            else:
+                from dateutil import parser
+                fecha_real = parser.parse(str(fecha))
+                return fecha_real.strftime('%d/%m/%Y')
+        except:
+            return None
+    
+    def extraer_mes_anio(self, fecha):
+        try:
+            if isinstance(fecha, (int, float)):
+                fecha_base = datetime(1899, 12, 30)
+                fecha_real = fecha_base + timedelta(days=int(fecha))
+            elif isinstance(fecha, pd.Timestamp):
+                fecha_real = fecha
+            else:
+                from dateutil import parser
+                fecha_real = parser.parse(str(fecha))
+
+            meses = {
+                1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+                5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+                9: "Setiembre",
+                10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+            }
+
+            return {'mes': meses[fecha_real.month], 'anio': fecha_real.year}
+        except:
+            return None
+
+    # ============================================
+    # FUNCIÓN DE DIAGNÓSTICO ULTRA COMPLETA
+    # ============================================
+
+    def exportar_diagnostico_completo(self, nombre_archivo="diagnostico_completo"):
+        """
+        FUNCIÓN DE DIAGNÓSTICO MEGA COMPLETA
+        Exporta TODA la información de la página actual:
+        - HTML completo
+        - Todos los iframes con detalles
+        - Todos los selectores (inputs, selects, buttons, etc.)
+        - Screenshots
+        - Estructura del DOM
+
+        Returns:
+            str: Ruta de la carpeta donde se guardó el diagnóstico
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            carpeta_diagnostico = f"diagnostico_{timestamp}"
+
+            # Crear carpeta de diagnóstico
+            if not os.path.exists(carpeta_diagnostico):
+                os.makedirs(carpeta_diagnostico)
+
+            self.log(f"\n{'='*80}")
+            self.log(f"🔬 INICIANDO DIAGNÓSTICO ULTRA COMPLETO")
+            self.log(f"{'='*80}")
+            self.log(f"📁 Carpeta: {carpeta_diagnostico}")
+
+            # ========== 1. INFORMACIÓN GENERAL ==========
+            self.log("\n1️⃣ Exportando información general...")
+            info_general = {
+                "timestamp": timestamp,
+                "url": self.driver.current_url,
+                "titulo": self.driver.title,
+                "ventanas_abiertas": len(self.driver.window_handles)
+            }
+
+            with open(f"{carpeta_diagnostico}/01_info_general.json", "w", encoding="utf-8") as f:
+                json.dump(info_general, f, indent=2, ensure_ascii=False)
+
+            # ========== 2. HTML COMPLETO DE LA PÁGINA ==========
+            self.log("2️⃣ Exportando HTML completo de la página principal...")
+            html_principal = self.driver.page_source
+            with open(f"{carpeta_diagnostico}/02_html_principal.html", "w", encoding="utf-8") as f:
+                f.write(html_principal)
+
+            # ========== 3. INFORMACIÓN DETALLADA DE TODOS LOS IFRAMES ==========
+            self.log("3️⃣ Analizando todos los iframes...")
+            iframes_info = []
+
+            self.driver.switch_to.default_content()
+            iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+
+            self.log(f"   → {len(iframes)} iframes encontrados")
+
+            for idx, iframe in enumerate(iframes):
+                try:
+                    iframe_data = {
+                        "indice": idx,
+                        "id": iframe.get_attribute("id") or "sin_id",
+                        "name": iframe.get_attribute("name") or "sin_name",
+                        "src": iframe.get_attribute("src") or "sin_src",
+                        "class": iframe.get_attribute("class") or "sin_class",
+                        "visible": iframe.is_displayed(),
+                        "enabled": iframe.is_enabled(),
+                        "width": iframe.get_attribute("width") or "auto",
+                        "height": iframe.get_attribute("height") or "auto"
+                    }
+
+                    # Intentar acceder al iframe y obtener su contenido
+                    try:
+                        self.driver.switch_to.default_content()
+                        self.driver.switch_to.frame(idx)
+
+                        # Obtener HTML del iframe
+                        iframe_html = self.driver.page_source
+                        iframe_data["html_length"] = len(iframe_html)
+                        iframe_data["accesible"] = True
+
+                        # Guardar HTML del iframe
+                        with open(f"{carpeta_diagnostico}/iframe_{idx}_{iframe_data['id']}.html", "w", encoding="utf-8") as f:
+                            f.write(iframe_html)
+
+                        # Buscar elementos clave en el iframe
+                        iframe_data["elementos"] = {
+                            "forms": len(self.driver.find_elements(By.TAG_NAME, "form")),
+                            "inputs": len(self.driver.find_elements(By.TAG_NAME, "input")),
+                            "selects": len(self.driver.find_elements(By.TAG_NAME, "select")),
+                            "buttons": len(self.driver.find_elements(By.TAG_NAME, "button")),
+                            "textareas": len(self.driver.find_elements(By.TAG_NAME, "textarea"))
+                        }
+
+                        # Buscar campo tipodoc específicamente
+                        try:
+                            tipodoc = self.driver.find_element(By.NAME, "tipodoc")
+                            iframe_data["tiene_tipodoc"] = True
+                            iframe_data["POSIBLE_IFRAME_CORRECTO"] = "⭐⭐⭐ SÍ ⭐⭐⭐"
+                        except:
+                            iframe_data["tiene_tipodoc"] = False
+                            iframe_data["POSIBLE_IFRAME_CORRECTO"] = "No"
+
+                        # Buscar formulario registroden
+                        try:
+                            form = self.driver.find_element(By.NAME, "registroden")
+                            iframe_data["tiene_form_registroden"] = True
+                        except:
+                            iframe_data["tiene_form_registroden"] = False
+
+                        self.driver.switch_to.default_content()
+
+                    except Exception as e:
+                        iframe_data["accesible"] = False
+                        iframe_data["error_acceso"] = str(e)[:100]
+                        self.driver.switch_to.default_content()
+
+                    iframes_info.append(iframe_data)
+                    self.log(f"   ✓ Iframe {idx} ({iframe_data['id']}): {'✅ ACCESIBLE' if iframe_data.get('accesible') else '❌ NO ACCESIBLE'}")
+
+                except Exception as e:
+                    self.log(f"   ⚠️ Error en iframe {idx}: {str(e)[:50]}")
+
+            # Guardar información de iframes
+            with open(f"{carpeta_diagnostico}/03_iframes_detalle.json", "w", encoding="utf-8") as f:
+                json.dump(iframes_info, f, indent=2, ensure_ascii=False)
+
+            # Crear reporte legible de iframes
+            with open(f"{carpeta_diagnostico}/03_iframes_reporte.txt", "w", encoding="utf-8") as f:
+                f.write("="*80 + "\n")
+                f.write("REPORTE DE IFRAMES\n")
+                f.write("="*80 + "\n\n")
+
+                for iframe in iframes_info:
+                    f.write(f"\n{'='*80}\n")
+                    f.write(f"IFRAME #{iframe['indice']}\n")
+                    f.write(f"{'='*80}\n")
+                    f.write(f"ID: {iframe['id']}\n")
+                    f.write(f"NAME: {iframe['name']}\n")
+                    f.write(f"SRC: {iframe['src']}\n")
+                    f.write(f"VISIBLE: {iframe['visible']}\n")
+                    f.write(f"ACCESIBLE: {iframe.get('accesible', False)}\n")
+                    f.write(f"⭐ IFRAME CORRECTO: {iframe.get('POSIBLE_IFRAME_CORRECTO', 'No')}\n")
+
+                    if iframe.get('accesible'):
+                        f.write(f"\nElementos encontrados:\n")
+                        for key, value in iframe.get('elementos', {}).items():
+                            f.write(f"  - {key}: {value}\n")
+                        f.write(f"\nTiene campo 'tipodoc': {iframe.get('tiene_tipodoc', False)}\n")
+                        f.write(f"Tiene formulario 'registroden': {iframe.get('tiene_form_registroden', False)}\n")
+                    else:
+                        f.write(f"\nError: {iframe.get('error_acceso', 'N/A')}\n")
+
+            # ========== 4. SELECTORES EN PÁGINA PRINCIPAL ==========
+            self.log("4️⃣ Extrayendo selectores de página principal...")
+            self.driver.switch_to.default_content()
+
+            selectores = {
+                "inputs": [],
+                "selects": [],
+                "buttons": [],
+                "textareas": [],
+                "forms": [],
+                "links": []
+            }
+
+            # Inputs
+            for inp in self.driver.find_elements(By.TAG_NAME, "input")[:50]:
+                try:
+                    selectores["inputs"].append({
+                        "name": inp.get_attribute("name"),
+                        "id": inp.get_attribute("id"),
+                        "type": inp.get_attribute("type"),
+                        "value": inp.get_attribute("value"),
+                        "visible": inp.is_displayed()
+                    })
+                except:
+                    pass
+
+            # Selects
+            for sel in self.driver.find_elements(By.TAG_NAME, "select")[:50]:
+                try:
+                    selectores["selects"].append({
+                        "name": sel.get_attribute("name"),
+                        "id": sel.get_attribute("id"),
+                        "visible": sel.is_displayed()
+                    })
+                except:
+                    pass
+
+            # Buttons
+            for btn in self.driver.find_elements(By.TAG_NAME, "button")[:50]:
+                try:
+                    selectores["buttons"].append({
+                        "name": btn.get_attribute("name"),
+                        "id": btn.get_attribute("id"),
+                        "text": btn.text.strip()[:50],
+                        "visible": btn.is_displayed()
+                    })
+                except:
+                    pass
+
+            with open(f"{carpeta_diagnostico}/04_selectores_principal.json", "w", encoding="utf-8") as f:
+                json.dump(selectores, f, indent=2, ensure_ascii=False)
+
+            # ========== 5. SCREENSHOT ==========
+            self.log("5️⃣ Capturando screenshot...")
+            try:
+                self.driver.save_screenshot(f"{carpeta_diagnostico}/05_screenshot.png")
+                self.log("   ✓ Screenshot guardado")
+            except Exception as e:
+                self.log(f"   ⚠️ No se pudo guardar screenshot: {str(e)[:50]}")
+
+            # ========== 6. CREAR REPORTE RESUMEN ==========
+            self.log("6️⃣ Generando reporte resumen...")
+
+            with open(f"{carpeta_diagnostico}/00_REPORTE_RESUMEN.txt", "w", encoding="utf-8") as f:
+                f.write("="*80 + "\n")
+                f.write("REPORTE DE DIAGNÓSTICO COMPLETO\n")
+                f.write("="*80 + "\n")
+                f.write(f"Fecha: {timestamp}\n")
+                f.write(f"URL: {info_general['url']}\n")
+                f.write(f"Título: {info_general['titulo']}\n")
+                f.write(f"\n{'='*80}\n")
+                f.write("RESUMEN DE IFRAMES\n")
+                f.write(f"{'='*80}\n")
+                f.write(f"Total de iframes: {len(iframes_info)}\n\n")
+
+                iframe_correcto = None
+                for iframe in iframes_info:
+                    status = "✅" if iframe.get('accesible') else "❌"
+                    f.write(f"{status} Iframe #{iframe['indice']}: {iframe['id']}\n")
+
+                    if iframe.get('tiene_tipodoc'):
+                        f.write(f"   ⭐⭐⭐ ESTE ES EL IFRAME CORRECTO ⭐⭐⭐\n")
+                        iframe_correcto = iframe
+
+                if iframe_correcto:
+                    f.write(f"\n{'='*80}\n")
+                    f.write("🎯 IFRAME CORRECTO IDENTIFICADO\n")
+                    f.write(f"{'='*80}\n")
+                    f.write(f"Índice: {iframe_correcto['indice']}\n")
+                    f.write(f"ID: {iframe_correcto['id']}\n")
+                    f.write(f"NAME: {iframe_correcto['name']}\n")
+                    f.write(f"\n⚠️ USAR ESTE ID PARA CORREGIR EL CÓDIGO:\n")
+                    f.write(f"   self.driver.switch_to.frame('{iframe_correcto['id']}')\n")
+                    f.write(f"   O BIEN:\n")
+                    f.write(f"   self.driver.switch_to.frame({iframe_correcto['indice']})\n")
+                else:
+                    f.write(f"\n⚠️ NO SE ENCONTRÓ EL IFRAME CON EL CAMPO 'tipodoc'\n")
+
+                f.write(f"\n{'='*80}\n")
+                f.write("ARCHIVOS GENERADOS\n")
+                f.write(f"{'='*80}\n")
+                f.write("01_info_general.json - Información general de la página\n")
+                f.write("02_html_principal.html - HTML completo de la página principal\n")
+                f.write("03_iframes_detalle.json - Información detallada de iframes (JSON)\n")
+                f.write("03_iframes_reporte.txt - Reporte legible de iframes\n")
+                f.write("04_selectores_principal.json - Selectores de la página principal\n")
+                f.write("05_screenshot.png - Captura de pantalla\n")
+                f.write("iframe_X_*.html - HTML de cada iframe accesible\n")
+
+            self.log(f"\n{'='*80}")
+            self.log(f"✅ DIAGNÓSTICO COMPLETADO")
+            self.log(f"{'='*80}")
+            self.log(f"📁 Archivos guardados en: {os.path.abspath(carpeta_diagnostico)}")
+
+            # Mostrar iframe correcto si se encontró
+            iframe_correcto = next((ifr for ifr in iframes_info if ifr.get('tiene_tipodoc')), None)
+            if iframe_correcto:
+                self.log(f"\n🎯 IFRAME CORRECTO ENCONTRADO:")
+                self.log(f"   ID: {iframe_correcto['id']}")
+                self.log(f"   NAME: {iframe_correcto['name']}")
+                self.log(f"   Índice: {iframe_correcto['indice']}")
+
+            messagebox.showinfo(
+                "Diagnóstico Completado",
+                f"✅ Diagnóstico exportado exitosamente\n\n"
+                f"📁 Carpeta: {carpeta_diagnostico}\n\n"
+                f"Revisa el archivo:\n00_REPORTE_RESUMEN.txt"
+            )
+
+            return os.path.abspath(carpeta_diagnostico)
+
+        except Exception as e:
+            self.log(f"❌ Error en diagnóstico: {str(e)}")
+            import traceback
+            self.log(traceback.format_exc())
+            return None
+
+    # ============================================
+    # PROCESO PRINCIPAL
+    # ============================================
+    
+    def procesar_una_denuncia(self, datos_fila, numero_fila):
+        try:
+            if not self.interfaz.proceso_activo:
+                return False
+            
+            self.log(f"\n{'='*50}")
+            self.log(f"📋 PROCESANDO DENUNCIA #{numero_fila}")
+            self.log(f"{'='*50}")
+            
+            # Navegar al formulario
+            if not self.navegar_a_formulario_registro():
+                self.log("❌ Fallo en navegación al formulario")
+                self.denuncias_fallidas += 1
+                return False
+
+            if not self.interfaz.proceso_activo:
+                self.log("⚠️ Proceso cancelado por usuario")
+                return False
+
+            # Sección 1
+            self.log("\n🔄 Iniciando llenado de Sección 1...")
+            resultado_seccion1 = self.llenar_seccion1_identificacion(datos_fila)
+            self.log(f"📊 Resultado Sección 1: {resultado_seccion1}")
+
+            if not resultado_seccion1:
+                self.log("❌ Fallo en Sección 1 - Identificación")
+                self.denuncias_fallidas += 1
+                return False
+            
+            if not self.interfaz.proceso_activo:
+                return False
+            
+            # Sección 2
+            if not self.llenar_seccion2_atencion_denuncias(datos_fila):
+                return False
+            
+            if not self.interfaz.proceso_activo:
+                return False
+            
+            # Sección 3
+            if not self.llenar_seccion3_identificacion_denunciante(datos_fila):
+                return False
+            
+            self.log(f"🎉 ¡DENUNCIA #{numero_fila} REGISTRADA EXITOSAMENTE!")
+            self.denuncias_exitosas += 1
+            
+            # Cerrar ventana emergente
+            self.driver.close()
+            self.driver.switch_to.window(self.driver.window_handles[0])
+            time.sleep(2)
+            
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error en denuncia #{numero_fila}: {str(e)}")
+            self.denuncias_fallidas += 1
+            
+            try:
+                if len(self.driver.window_handles) > 1:
+                    self.driver.close()
+                    self.driver.switch_to.window(self.driver.window_handles[0])
+            except:
+                pass
+            
+            return False
+    
+    def ejecutar(self):
+        try:
+            self.log("="*50)
+            self.log("🤖 INICIANDO PROCESO")
+            self.log("="*50)
+            
+            # Leer Excel
+            self.log(f"📂 Leyendo: {os.path.basename(self.archivo_excel)}")
+            df = pd.read_excel(self.archivo_excel)
+            total = len(df)
+            self.log(f"✅ {total} denuncias encontradas\n")
+            
+            # Iniciar navegador
+            if not self.iniciar_navegador():
+                return
+            
+            # Login
+            if not self.hacer_login():
+                self.cerrar_navegador()
+                return
+            
+            # Procesar cada denuncia
+            for index, fila in df.iterrows():
+                if not self.interfaz.proceso_activo:
+                    self.log("\n⚠️ PROCESO CANCELADO")
+                    break
+                
+                numero_fila = index + 2
+                self.procesar_una_denuncia(fila, numero_fila)
+                time.sleep(2)
+            
+            # Resumen
+            self.log("\n" + "="*50)
+            self.log("📊 RESUMEN FINAL")
+            self.log("="*50)
+            self.log(f"✅ Exitosas: {self.denuncias_exitosas}/{total}")
+            self.log(f"❌ Fallidas: {self.denuncias_fallidas}/{total}")
+            if total > 0:
+                tasa = (self.denuncias_exitosas/total)*100
+                self.log(f"📈 Tasa de éxito: {tasa:.2f}%")
+            self.log("="*50)
+            
+            self.log("\nCerrando navegador...")
+            time.sleep(3)
+            self.cerrar_navegador()
+            
+            self.log("\n🏁 ¡PROCESO COMPLETADO!")
+            
+            messagebox.showinfo(
+                "Proceso Completado",
+                f"✅ Exitosas: {self.denuncias_exitosas}\n"
+                f"❌ Fallidas: {self.denuncias_fallidas}\n"
+                f"📊 Total: {total}"
+            )
+            
+        except Exception as e:
+            self.log(f"\n❌ ERROR CRÍTICO: {str(e)}")
+            messagebox.showerror("Error", f"Error:\n{str(e)}")
+            self.cerrar_navegador()
+
+
+# ============================================
+# PUNTO DE ENTRADA
+# ============================================
+
+# ============================================
+# INTERFAZ GRÁFICA MEJORADA V3
+# ============================================
+class InterfazBotMejorada:
+    def __init__(self):
+        self.ventana = tk.Tk()
+        self.ventana.title("Bot SUNAT - Registro de Denuncias")
+        self.ventana.geometry("950x750")  # Aumentado para mostrar todos los botones
+        self.ventana.resizable(True, True)  # Permitir redimensionar
+        self.ventana.configure(bg="#f0f4f8")
+
+        # Variables
+        self.ruta_archivo = tk.StringVar()
+        self.usuario = tk.StringVar()
+        self.password = tk.StringVar()
+        self.bot = None
+        self.proceso_activo = False
+        self.hilo_proceso = None
+
+        # Colores profesionales
+        self.COLOR_PRIMARIO = "#1e40af"  # Azul profesional
+        self.COLOR_SECUNDARIO = "#3b82f6"  # Azul claro
+        self.COLOR_EXITO = "#059669"  # Verde
+        self.COLOR_PELIGRO = "#dc2626"  # Rojo
+        self.COLOR_INFO = "#0891b2"  # Cyan
+        self.COLOR_ADVERTENCIA = "#d97706"  # Naranja
+        self.COLOR_FONDO = "#f0f4f8"  # Gris claro
+        self.COLOR_TARJETA = "#ffffff"  # Blanco
+
+        self.crear_interfaz_mejorada()
+
+        # Mensaje de bienvenida en consola
+        self.escribir_consola("="*60 + "\n")
+        self.escribir_consola("🏛️ BOT SUNAT - SISTEMA DE REGISTRO DE DENUNCIAS\n")
+        self.escribir_consola("="*60 + "\n")
+        self.escribir_consola("✅ Interfaz cargada correctamente\n")
+        self.escribir_consola("\n📋 BOTONES DISPONIBLES:\n")
+        self.escribir_consola("  1. ▶️ INICIAR PROCESO AUTOMÁTICO\n")
+        self.escribir_consola("  2. ⏹️ CANCELAR PROCESO\n")
+        self.escribir_consola("="*60 + "\n\n")
+
+    def crear_interfaz_mejorada(self):
+        """Crea interfaz profesional y moderna"""
+
+        # ═══════════════════════════════════════
+        # HEADER CON GRADIENTE (COMPACTO)
+        # ═══════════════════════════════════════
+        frame_header = tk.Frame(self.ventana, bg=self.COLOR_PRIMARIO, height=50)
+        frame_header.pack(fill=tk.X)
+        frame_header.pack_propagate(False)
+
+        label_titulo = tk.Label(
+            frame_header,
+            text="🏛️ SISTEMA DE REGISTRO DE DENUNCIAS",
+            font=("Segoe UI", 13, "bold"),
+            bg=self.COLOR_PRIMARIO,
+            fg="white"
+        )
+        label_titulo.pack(pady=12)
+
+        # ═══════════════════════════════════════
+        # CONTENEDOR PRINCIPAL COMPACTO
+        # ═══════════════════════════════════════
+        frame_principal = tk.Frame(self.ventana, bg=self.COLOR_FONDO)
+        frame_principal.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
+
+        # ═══════════════════════════════════════
+        # FILA 1: CREDENCIALES + ARCHIVO (HORIZONTAL)
+        # ═══════════════════════════════════════
+        frame_fila_superior = tk.Frame(frame_principal, bg=self.COLOR_FONDO)
+        frame_fila_superior.pack(fill=tk.X, pady=(0, 8))
+
+        # ═══════════════════════════════════════
+        # TARJETA 1: CREDENCIALES (IZQUIERDA)
+        # ═══════════════════════════════════════
+        frame_credenciales = tk.Frame(frame_fila_superior, bg=self.COLOR_TARJETA, relief=tk.RAISED, bd=1)
+        frame_credenciales.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+
+        label_seccion1 = tk.Label(
+            frame_credenciales,
+            text="🔐  CREDENCIALES DE ACCESO",
+            font=("Segoe UI", 9, "bold"),
+            bg=self.COLOR_TARJETA,
+            fg=self.COLOR_PRIMARIO,
+            anchor="w"
+        )
+        label_seccion1.pack(fill=tk.X, padx=10, pady=(8, 5))
+
+        # Separador
+        tk.Frame(frame_credenciales, height=1, bg="#e5e7eb").pack(fill=tk.X, padx=10)
+
+        # Grid interno para campos
+        frame_campos_cred = tk.Frame(frame_credenciales, bg=self.COLOR_TARJETA)
+        frame_campos_cred.pack(fill=tk.X, padx=10, pady=8)
+
+        # Usuario
+        tk.Label(
+            frame_campos_cred,
+            text="Usuario:",
+            font=("Segoe UI", 8),
+            bg=self.COLOR_TARJETA,
+            fg="#374151"
+        ).grid(row=0, column=0, sticky="e", padx=5, pady=4)
+
+        entry_usuario = tk.Entry(
+            frame_campos_cred,
+            textvariable=self.usuario,
+            font=("Segoe UI", 8),
+            width=25,
+            relief=tk.SOLID,
+            bd=1
+        )
+        entry_usuario.grid(row=0, column=1, sticky="ew", padx=5, pady=4)
+
+        # Contraseña
+        tk.Label(
+            frame_campos_cred,
+            text="Contraseña:",
+            font=("Segoe UI", 8),
+            bg=self.COLOR_TARJETA,
+            fg="#374151"
+        ).grid(row=1, column=0, sticky="e", padx=5, pady=4)
+
+        entry_password = tk.Entry(
+            frame_campos_cred,
+            textvariable=self.password,
+            font=("Segoe UI", 8),
+            width=25,
+            show="●",
+            relief=tk.SOLID,
+            bd=1
+        )
+        entry_password.grid(row=1, column=1, sticky="ew", padx=5, pady=4)
+
+        # Configurar columna para que se expanda
+        frame_campos_cred.columnconfigure(1, weight=1)
+
+        # ═══════════════════════════════════════
+        # TARJETA 2: ARCHIVO (DERECHA)
+        # ═══════════════════════════════════════
+        frame_archivo = tk.Frame(frame_fila_superior, bg=self.COLOR_TARJETA, relief=tk.RAISED, bd=1)
+        frame_archivo.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        label_seccion2 = tk.Label(
+            frame_archivo,
+            text="📂  ARCHIVO DE DENUNCIAS",
+            font=("Segoe UI", 9, "bold"),
+            bg=self.COLOR_TARJETA,
+            fg=self.COLOR_PRIMARIO,
+            anchor="w"
+        )
+        label_seccion2.pack(fill=tk.X, padx=10, pady=(8, 5))
+
+        tk.Frame(frame_archivo, height=1, bg="#e5e7eb").pack(fill=tk.X, padx=10)
+
+        frame_campos_archivo = tk.Frame(frame_archivo, bg=self.COLOR_TARJETA)
+        frame_campos_archivo.pack(fill=tk.X, padx=10, pady=8)
+
+        tk.Label(
+            frame_campos_archivo,
+            text="Archivo:",
+            font=("Segoe UI", 8),
+            bg=self.COLOR_TARJETA,
+            fg="#374151"
+        ).grid(row=0, column=0, sticky="e", padx=5, pady=8)
+
+        entry_archivo = tk.Entry(
+            frame_campos_archivo,
+            textvariable=self.ruta_archivo,
+            font=("Segoe UI", 8),
+            width=20,
+            state="readonly",
+            relief=tk.SOLID,
+            bd=1
+        )
+        entry_archivo.grid(row=0, column=1, sticky="ew", padx=5, pady=8)
+
+        btn_examinar = tk.Button(
+            frame_campos_archivo,
+            text="📁",
+            command=self.seleccionar_archivo,
+            font=("Segoe UI", 9, "bold"),
+            bg=self.COLOR_SECUNDARIO,
+            fg="white",
+            cursor="hand2",
+            width=3,
+            relief=tk.FLAT,
+            bd=0,
+            padx=3,
+            pady=3
+        )
+        btn_examinar.grid(row=0, column=2, padx=5, pady=8)
+
+        # Configurar columna para que se expanda
+        frame_campos_archivo.columnconfigure(1, weight=1)
+
+        # ═══════════════════════════════════════
+        # TARJETA 3: REGISTRO DE ACTIVIDAD (COMPACTO)
+        # ═══════════════════════════════════════
+        frame_consola = tk.Frame(frame_principal, bg=self.COLOR_TARJETA, relief=tk.RAISED, bd=1)
+        frame_consola.pack(fill=tk.X, expand=False, pady=(0, 8))
+
+        label_seccion3 = tk.Label(
+            frame_consola,
+            text="📋  REGISTRO DE ACTIVIDAD",
+            font=("Segoe UI", 9, "bold"),
+            bg=self.COLOR_TARJETA,
+            fg=self.COLOR_PRIMARIO,
+            anchor="w"
+        )
+        label_seccion3.pack(fill=tk.X, padx=10, pady=(8, 5))
+
+        tk.Frame(frame_consola, height=1, bg="#e5e7eb").pack(fill=tk.X, padx=10)
+
+        self.consola = scrolledtext.ScrolledText(
+            frame_consola,
+            width=95,
+            height=5,
+            font=("Consolas", 8),
+            bg="#1e293b",
+            fg="#e2e8f0",
+            state="disabled",
+            relief=tk.FLAT,
+            padx=8,
+            pady=6
+        )
+        self.consola.pack(fill=tk.BOTH, expand=False, padx=10, pady=8)
+
+        # ═══════════════════════════════════════
+        # BOTONES DE ACCIÓN PRINCIPALES (COMPACTOS)
+        # ═══════════════════════════════════════
+        frame_botones_container = tk.Frame(frame_principal, bg=self.COLOR_TARJETA, relief=tk.RAISED, bd=2)
+        frame_botones_container.pack(fill=tk.X, pady=(0, 5))
+
+        # Título de sección de botones
+        label_botones = tk.Label(
+            frame_botones_container,
+            text="⚙️  ACCIONES DISPONIBLES",
+            font=("Segoe UI", 9, "bold"),
+            bg=self.COLOR_TARJETA,
+            fg=self.COLOR_PRIMARIO,
+            anchor="w"
+        )
+        label_botones.pack(fill=tk.X, padx=10, pady=(8, 5))
+
+        tk.Frame(frame_botones_container, height=1, bg="#e5e7eb").pack(fill=tk.X, padx=10)
+
+        # Frame para los 3 botones principales (una sola fila)
+        frame_botones = tk.Frame(frame_botones_container, bg=self.COLOR_TARJETA)
+        frame_botones.pack(fill=tk.X, padx=10, pady=10)
+
+        # Botón 1: INICIAR PROCESO AUTOMÁTICO
+        self.btn_iniciar = tk.Button(
+            frame_botones,
+            text="▶️ INICIAR PROCESO\nAUTOMÁTICO",
+            command=self.iniciar_proceso,
+            font=("Segoe UI", 9, "bold"),
+            bg=self.COLOR_EXITO,
+            fg="white",
+            cursor="hand2",
+            width=20,
+            height=2,
+            relief=tk.RAISED,
+            bd=2,
+            activebackground="#047857"
+        )
+        self.btn_iniciar.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.BOTH)
+
+        # Botón 2: CANCELAR PROCESO
+        self.btn_cancelar = tk.Button(
+            frame_botones,
+            text="⏹️ CANCELAR\nPROCESO",
+            command=self.cancelar_proceso,
+            font=("Segoe UI", 9, "bold"),
+            bg=self.COLOR_PELIGRO,
+            fg="white",
+            cursor="hand2",
+            width=20,
+            height=2,
+            state="disabled",
+            relief=tk.RAISED,
+            bd=2,
+            activebackground="#b91c1c"
+        )
+        self.btn_cancelar.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.BOTH)
+
+        # ═══════════════════════════════════════
+        # BARRA DE ESTADO (COMPACTA)
+        # ═══════════════════════════════════════
+        self.label_estado = tk.Label(
+            self.ventana,
+            text="●  Estado: Esperando inicio del proceso...",
+            font=("Segoe UI", 8),
+            bg="#ffffff",
+            fg="#6b7280",
+            anchor="w",
+            padx=10,
+            relief=tk.RAISED,
+            bd=1
+        )
+        self.label_estado.pack(side=tk.BOTTOM, fill=tk.X)
+
+    def seleccionar_archivo(self):
+        archivo = filedialog.askopenfilename(
+            title="Seleccionar archivo Excel de denuncias",
+            filetypes=[
+                ("Archivos Excel", "*.xlsx *.xls"),
+                ("Todos los archivos", "*.*")
+            ]
+        )
+        if archivo:
+            self.ruta_archivo.set(archivo)
+            self.escribir_consola(f"✅ Archivo seleccionado: {os.path.basename(archivo)}\n")
+
+    def escribir_consola(self, mensaje):
+        self.consola.config(state="normal")
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.consola.insert(tk.END, f"[{timestamp}] {mensaje}")
+        self.consola.see(tk.END)
+        self.consola.config(state="disabled")
+        self.ventana.update()
+
+    def limpiar_consola(self):
+        self.consola.config(state="normal")
+        self.consola.delete(1.0, tk.END)
+        self.consola.config(state="disabled")
+
+    def validar_campos(self, requiere_excel=True):
+        if not self.usuario.get().strip():
+            messagebox.showerror("Error", "Por favor ingrese el usuario")
+            return False
+
+        if not self.password.get().strip():
+            messagebox.showerror("Error", "Por favor ingrese la contraseña")
+            return False
+
+        if requiere_excel:
+            if not self.ruta_archivo.get().strip():
+                messagebox.showerror("Error", "Por favor seleccione un archivo Excel")
+                return False
+
+            if not os.path.exists(self.ruta_archivo.get()):
+                messagebox.showerror("Error", "El archivo seleccionado no existe")
+                return False
+
+        return True
+
+    def iniciar_proceso(self):
+        """Inicia el proceso automático normal"""
+        if not self.validar_campos():
+            return
+
+        respuesta = messagebox.askyesno(
+            "Confirmar",
+            "¿Desea iniciar el proceso AUTOMÁTICO de registro de denuncias?\n\n"
+            "El bot procesará todas las denuncias del Excel de forma automática.\n\n"
+            "Si desea un modo manual asistido, use el otro botón."
+        )
+
+        if not respuesta:
+            return
+
+        self.limpiar_consola()
+        self.btn_iniciar.config(state="disabled")
+        self.btn_cancelar.config(state="normal")
+        self.proceso_activo = True
+        self.label_estado.config(text="●  Estado: Proceso automático en ejecución...", fg=self.COLOR_EXITO)
+
+        # Ejecutar bot en hilo separado
+        self.hilo_proceso = threading.Thread(target=self._ejecutar_bot_automatico, daemon=True)
+        self.hilo_proceso.start()
+
+    def cancelar_proceso(self):
+        respuesta = messagebox.askyesno(
+            "Confirmar Cancelación",
+            "¿Está seguro que desea cancelar el proceso?"
+        )
+
+        if respuesta:
+            self.proceso_activo = False
+            self.escribir_consola("\n⚠️ CANCELANDO PROCESO...\n")
+            self.label_estado.config(text="●  Estado: Proceso cancelado", fg=self.COLOR_PELIGRO)
+
+            # Cerrar navegador si existe
+            if self.bot and hasattr(self.bot, 'driver') and self.bot.driver:
+                try:
+                    self.bot.driver.quit()
+                except:
+                    pass
+
+            self.btn_iniciar.config(state="normal")
+            self.btn_cancelar.config(state="disabled")
+
+    def _ejecutar_bot_automatico(self):
+        """Hilo que ejecuta el bot automático completo"""
+        try:
+            self.escribir_consola("🚀 Iniciando proceso automático...\n")
+            self.escribir_consola("="*60 + "\n")
+
+            # Crear instancia del bot
+            self.bot = BotDenunciasSUNAT(
+                archivo_excel=self.ruta_archivo.get(),
+                usuario=self.usuario.get(),
+                password=self.password.get(),
+                interfaz=self
+            )
+
+            # Ejecutar bot
+            self.bot.ejecutar()
+
+            # Mostrar resumen final
+            if hasattr(self.bot, 'denuncias_exitosas'):
+                self.escribir_consola("\n" + "="*60 + "\n")
+                self.escribir_consola(f"✅ PROCESO COMPLETADO\n")
+                self.escribir_consola(f"   Denuncias exitosas: {self.bot.denuncias_exitosas}\n")
+                if hasattr(self.bot, 'denuncias_fallidas'):
+                    self.escribir_consola(f"   Denuncias fallidas: {self.bot.denuncias_fallidas}\n")
+                self.escribir_consola("="*60 + "\n")
+
+                self.label_estado.config(
+                    text=f"●  Estado: Completado - {self.bot.denuncias_exitosas} denuncias exitosas",
+                    fg=self.COLOR_EXITO
+                )
+            else:
+                self.label_estado.config(text="●  Estado: Proceso finalizado", fg="#6b7280")
+
+        except Exception as e:
+            self.escribir_consola(f"\n❌ ERROR CRÍTICO: {str(e)}\n")
+            messagebox.showerror("Error", f"Error crítico en el bot:\n{str(e)}")
+            self.label_estado.config(text="●  Estado: Error en proceso", fg=self.COLOR_PELIGRO)
+
+        finally:
+            self.btn_iniciar.config(state="normal")
+            self.btn_cancelar.config(state="disabled")
+            self.proceso_activo = False
+
+    def ejecutar(self):
+        self.ventana.mainloop()
+
+
+
+# ============================================
+# PUNTO DE ENTRADA
+# ============================================
+if __name__ == "__main__":
+    app = InterfazBotMejorada()
+    app.ejecutar()
