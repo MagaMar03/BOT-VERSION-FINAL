@@ -708,122 +708,245 @@ class BotDenunciasSUNAT:
         },
 
         # ─────────────────────────────────────────────────────────────────────────
-        # SECCIÓN 2: ATENCIÓN DE DENUNCIAS
+        # SECCIÓN 2: ATENCIÓN DE DENUNCIAS - MÉTODOS ULTRA ROBUSTOS
         # ─────────────────────────────────────────────────────────────────────────
         "modalidad": {
             "tipo": "select",
-            "selectores": ["modalidad", "cboModalidad"],
-            "textos_visibles": ["Modalidad Evasión Denunciada", "Modalidad Evasión", "Modalidad", "MODALIDAD"],
+            "selectores": ["modalidad", "cboModalidad", "modalidad_evasion"],
+            "textos_visibles": [
+                "*Modalidad Evasión Denunciada",
+                "Modalidad Evasión Denunciada",
+                "Modalidad Evasión",
+                "Modalidad",
+                "MODALIDAD EVASIÓN DENUNCIADA",
+                "MODALIDAD"
+            ],
             "xpaths": [
                 "//select[@name='modalidad']",
                 "//select[contains(@id,'modalidad')]",
-                "//td[contains(text(),'Modalidad')]/following::select[1]"
+                "//select[contains(@class,'select')][@name='modalidad']",
+                "//td[contains(text(),'*Modalidad')]/following::select[1]",
+                "//td[contains(text(),'Modalidad Evasión')]/following::select[1]",
+                "//label[contains(text(),'Modalidad')]/following::select[1]",
+                "//td[@class='gamma'][contains(.,'Modalidad')]//select",
+                "//td[contains(.,'Modalidad')]/following-sibling::td//select[1]",
+                "//select[contains(@onchange,'modalidad')]",
+                "//form[@name='frmingreso']//select[@name='modalidad']"
             ]
         },
         "submodalidad": {
             "tipo": "select",
-            "selectores": ["submodalidad", "cboSubmodalidad"],
-            "textos_visibles": ["Sub Modalidad", "Submodalidad", "SUB MODALIDAD"],
+            "selectores": ["submodalidad", "cboSubmodalidad", "sub_modalidad"],
+            "textos_visibles": [
+                "*Sub Modalidad",
+                "Sub Modalidad",
+                "Submodalidad",
+                "SUB MODALIDAD"
+            ],
             "xpaths": [
                 "//select[@name='submodalidad']",
                 "//select[contains(@id,'submodalidad')]",
-                "//td[contains(text(),'Sub Modalidad')]/following::select[1]"
+                "//select[contains(@id,'sub')]",
+                "//td[contains(text(),'*Sub Modalidad')]/following::select[1]",
+                "//td[contains(text(),'Sub Modalidad')]/following::select[1]",
+                "//label[contains(text(),'Sub Modalidad')]/following::select[1]",
+                "//td[@class='gamma'][contains(.,'Sub')]//select",
+                "//td[contains(.,'Sub Modalidad')]/following-sibling::td//select[1]",
+                "//select[@name='modalidad']/ancestor::td/following-sibling::td//select[1]"
             ]
         },
         "rdoTipo": {
             "tipo": "radio",
             "selectores": ["rdoTipo"],
-            "textos_visibles": ["Tipo de Denuncia", "TIPO DE DENUNCIA"],
+            "textos_visibles": [
+                "*Tipo de Denuncia",
+                "Tipo de Denuncia",
+                "TIPO DE DENUNCIA"
+            ],
             "xpaths": [
-                "//input[@name='rdoTipo'][@value='1']",  # Telefónica
-                "//input[@name='rdoTipo'][@value='2']",  # Verbal
-                "//input[@name='rdoTipo'][@value='3']",  # Escrita
-                "//input[@name='rdoTipo'][@value='4']"   # Formato Electrónico
+                "//input[@name='rdoTipo'][@value='1']",
+                "//input[@name='rdoTipo'][@value='2']",
+                "//input[@name='rdoTipo'][@value='3']",
+                "//input[@name='rdoTipo'][@value='4']",
+                "//td[contains(text(),'*Tipo de Denuncia')]/following::input[@type='radio'][1]",
+                "//td[contains(text(),'Tipo de Denuncia')]/following::input[@type='radio'][1]",
+                "//tr[contains(.,'Tipo de Denuncia')]//input[@type='radio'][@value='4']",
+                "//input[@class='bg'][@type='radio'][@name='rdoTipo']"
             ]
         },
         "fecha_sid": {
             "tipo": "input",
-            "selectores": ["fecha_sid", "fechaSid"],
-            "textos_visibles": ["Fecha SID", "Fecha SID o Control Documentario", "FECHA SID"],
+            "selectores": ["fecha_sid", "fechaSid", "fecha_control"],
+            "textos_visibles": [
+                "Fecha SID o Control Documentario",
+                "Fecha SID",
+                "FECHA SID",
+                "Control Documentario"
+            ],
             "xpaths": [
                 "//input[@name='fecha_sid']",
-                "//input[contains(@name,'fecha')]",
-                "//td[contains(text(),'Fecha SID')]/following::input[1]"
+                "//input[contains(@name,'fecha')][@type='text']",
+                "//input[@title='Fecha SID']",
+                "//td[contains(text(),'Fecha SID')]/following::input[1]",
+                "//label[contains(text(),'Fecha SID')]/following::input[1]",
+                "//td[contains(text(),'Control Documentario')]/following::input[1]",
+                "//td[@class='gamma'][contains(.,'Fecha SID')]//input",
+                "//td[contains(.,'Fecha SID')]/following-sibling::td//input[@type='text'][1]",
+                "//input[@maxlength='10'][@size='10'][@type='text']"
             ]
         },
         "detalle": {
             "tipo": "textarea",
-            "selectores": ["detalle", "txtDetalle"],
-            "textos_visibles": ["DETALLE DE LA DENUNCIA", "Detalle de la denuncia", "Detalle", "DETALLE"],
+            "selectores": ["detalle", "txtDetalle", "detalle_denuncia"],
+            "textos_visibles": [
+                "*DETALLE DE LA DENUNCIA",
+                "DETALLE DE LA DENUNCIA",
+                "Detalle de la denuncia",
+                "Detalle",
+                "DETALLE"
+            ],
             "xpaths": [
                 "//textarea[@name='detalle']",
                 "//textarea[contains(@name,'detalle')]",
-                "//td[contains(text(),'DETALLE')]/following::textarea[1]"
+                "//textarea[@class='bg']",
+                "//td[contains(text(),'*DETALLE')]/following::textarea[1]",
+                "//label[contains(text(),'DETALLE')]/following::textarea[1]",
+                "//*[contains(text(),'DETALLE DE LA DENUNCIA')]/following::textarea[1]",
+                "//td[@class='gamma'][contains(.,'DETALLE')]//textarea",
+                "//textarea[@cols='90'][@rows='16']",
+                "//textarea[contains(@onblur,'toUpperCase')]",
+                "//textarea[contains(@onchange,'cuenta')]",
+                "//form[@name='frmingreso']//textarea[1]"
             ]
         },
         "MesDesde": {
             "tipo": "select",
-            "selectores": ["MesDesde", "cboMesDesde"],
-            "textos_visibles": ["Del Mes", "Mes Desde", "DEL MES"],
+            "selectores": ["MesDesde", "cboMesDesde", "mes_desde"],
+            "textos_visibles": [
+                "Del Mes",
+                "Mes Desde",
+                "DEL MES"
+            ],
             "xpaths": [
                 "//select[@name='MesDesde']",
                 "//select[contains(@id,'MesDesde')]",
-                "//td[contains(text(),'Del Mes')]/following::select[1]"
+                "//select[contains(@name,'Mes')][@name='MesDesde']",
+                "//td[contains(text(),'Del Mes')]/following::select[1]",
+                "//*[contains(text(),'Del Mes')]/following-sibling::select[1]",
+                "//td[contains(.,'Rango o Periodo')]/following::select[1]",
+                "//td[@class='gamma'][contains(.,'Del Mes')]//select[1]",
+                "//select[option[@value='01'][contains(text(),'Enero')]][@name='MesDesde']"
             ]
         },
         "AnioDesde": {
             "tipo": "select",
-            "selectores": ["AnioDesde", "cboAnioDesde"],
-            "textos_visibles": ["Año", "Del Año", "Año Desde"],
+            "selectores": ["AnioDesde", "cboAnioDesde", "anio_desde"],
+            "textos_visibles": [
+                "Año",
+                "Del Año",
+                "Año Desde"
+            ],
             "xpaths": [
                 "//select[@name='AnioDesde']",
-                "//select[contains(@id,'AnioDesde')]"
+                "//select[contains(@id,'AnioDesde')]",
+                "//select[contains(@name,'Anio')][@name='AnioDesde']",
+                "//td[contains(text(),'Del Mes')]/following::select[2]",
+                "//*[text()='Año']/following::select[1]",
+                "//select[@name='MesDesde']/following::select[1]",
+                "//select[option[@value='2024']][@name='AnioDesde']"
             ]
         },
         "MesHasta": {
             "tipo": "select",
-            "selectores": ["MesHasta", "cboMesHasta"],
-            "textos_visibles": ["Al Mes", "Mes Hasta", "AL MES"],
+            "selectores": ["MesHasta", "cboMesHasta", "mes_hasta"],
+            "textos_visibles": [
+                "Al Mes",
+                "Mes Hasta",
+                "AL MES"
+            ],
             "xpaths": [
                 "//select[@name='MesHasta']",
                 "//select[contains(@id,'MesHasta')]",
-                "//td[contains(text(),'Al Mes')]/following::select[1]"
+                "//select[contains(@name,'Mes')][@name='MesHasta']",
+                "//td[contains(text(),'Al Mes')]/following::select[1]",
+                "//*[contains(text(),'Al Mes')]/following-sibling::select[1]",
+                "//select[@name='AnioDesde']/ancestor::td/following::select[1]",
+                "//select[option[@value='01'][contains(text(),'Enero')]][@name='MesHasta']"
             ]
         },
         "AnioHasta": {
             "tipo": "select",
-            "selectores": ["AnioHasta", "cboAnioHasta"],
-            "textos_visibles": ["Año", "Al Año", "Año Hasta"],
+            "selectores": ["AnioHasta", "cboAnioHasta", "anio_hasta"],
+            "textos_visibles": [
+                "Año",
+                "Al Año",
+                "Año Hasta"
+            ],
             "xpaths": [
                 "//select[@name='AnioHasta']",
-                "//select[contains(@id,'AnioHasta')]"
+                "//select[contains(@id,'AnioHasta')]",
+                "//select[contains(@name,'Anio')][@name='AnioHasta']",
+                "//td[contains(text(),'Al Mes')]/following::select[2]",
+                "//select[@name='MesHasta']/following::select[1]",
+                "//select[option[@value='2024']][@name='AnioHasta']"
             ]
         },
         "tipoPru": {
             "tipo": "radio",
             "selectores": ["tipoPru"],
-            "textos_visibles": ["Con el objetivo que la denuncia", "Pruebas Ofrecidas"],
+            "textos_visibles": [
+                "Con el objetivo que la denuncia",
+                "Pruebas Ofrecidas",
+                "Si",
+                "No"
+            ],
             "xpaths": [
-                "//input[@name='tipoPru'][@value='S']",  # Sí
-                "//input[@name='tipoPru'][@value='N']"   # No
+                "//input[@name='tipoPru'][@value='S']",
+                "//input[@name='tipoPru'][@value='N']",
+                "//td[contains(text(),'Con el objetivo')]/following::input[@type='radio'][1]",
+                "//*[contains(text(),'pruebas que puede aportar')]/ancestor::tr/following-sibling::tr//input[@type='radio'][@name='tipoPru']",
+                "//input[@class='bg'][@type='radio'][@name='tipoPru'][@value='S']",
+                "//input[@class='bg'][@type='radio'][@name='tipoPru'][@value='N']"
             ]
         },
         "elementos": {
             "tipo": "select_multiple",
-            "selectores": ["elementos", "lstElementos"],
-            "textos_visibles": ["Seleccione la(s) pruebas(a) que puede aportar", "Tipo de Pruebas", "Elementos"],
+            "selectores": ["elementos", "lstElementos", "pruebas"],
+            "textos_visibles": [
+                "Seleccione la(s) pruebas(a) que puede aportar",
+                "Seleccione las pruebas",
+                "Tipo de Pruebas",
+                "Elementos"
+            ],
             "xpaths": [
                 "//select[@name='elementos']",
-                "//select[@multiple][@name='elementos']"
+                "//select[@multiple][@name='elementos']",
+                "//select[@size='8'][@multiple]",
+                "//td[contains(text(),'Seleccione la(s) pruebas')]/following::select[1]",
+                "//*[contains(text(),'pruebas(a) que puede aportar')]/following::select[@multiple][1]",
+                "//td[contains(.,'Seleccione')]//select[@multiple]",
+                "//td[@class='gamma'][contains(.,'pruebas')]//select[@multiple]",
+                "//select[@multiple][option[contains(text(),'Otros, detalle')]]"
             ]
         },
         "otros": {
             "tipo": "input",
-            "selectores": ["otros", "txtOtros"],
-            "textos_visibles": ["Si seleccionó \"Otros, detalle\"", "Otros", "Detalle Otros"],
+            "selectores": ["otros", "txtOtros", "detalle_otros"],
+            "textos_visibles": [
+                "Si seleccionó \"Otros, detalle\", ingrese el detalle de la prueba",
+                "Si seleccionó \"Otros, detalle\"",
+                "Otros, detalle",
+                "Detalle Otros"
+            ],
             "xpaths": [
                 "//input[@name='otros']",
-                "//td[contains(text(),'Otros')]/following::input[1]"
+                "//input[@type='Text'][@name='otros']",
+                "//input[@maxlength='40'][@name='otros']",
+                "//td[contains(text(),'Si seleccionó')]/following::input[@type='Text'][1]",
+                "//*[contains(text(),'Otros, detalle')]/following::input[@type='Text'][1]",
+                "//td[contains(.,'ingrese el detalle')]//input",
+                "//select[@name='elementos']/ancestor::td/following-sibling::td//input[@type='Text'][1]",
+                "//input[@size='40'][@maxlength='40'][@class='bg'][@type='Text']"
             ]
         }
     }
