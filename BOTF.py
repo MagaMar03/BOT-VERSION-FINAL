@@ -382,6 +382,113 @@ class BotDenunciasSUNAT:
         self.log("  ❌ FALLO: No se pudo acceder al formulario")
         return False
 
+    def cambiar_a_iframe_seccion2(self):
+        """
+        Navega al iframe correcto para la Sección 2
+        Después de hacer clic en "Siguiente" en Sección 1, la página cambia a Sección 2
+        pero el driver necesita volver a entrar al iframe correcto
+
+        Estructura:
+        - Página principal
+          └─ iframe 'iframeApplication'
+             └─ frame 'det'
+                └─ Formulario Sección 2 con campo 'modalidad'
+        """
+        self.log("  🔍 Navegando al iframe de Sección 2...")
+
+        for intento in range(1, 4):
+            try:
+                self.log(f"\n  📍 Intento {intento}/3")
+
+                # Volver al contexto principal
+                self.driver.switch_to.default_content()
+
+                # PASO 1: Cambiar a iframe 'iframeApplication'
+                self.log("  → PASO 1: Buscando iframe 'iframeApplication'...")
+                wait = WebDriverWait(self.driver, 15)
+
+                iframe = wait.until(
+                    EC.presence_of_element_located((By.ID, "iframeApplication"))
+                )
+                self.log("  ✓ Iframe encontrado")
+
+                self.driver.switch_to.frame(iframe)
+                self.log("  ✓ Cambio al iframe exitoso")
+                time.sleep(1)
+
+                # PASO 2: Cambiar al frame 'det' DENTRO del iframe
+                self.log("  → PASO 2: Buscando frame 'det'...")
+                wait_frame = WebDriverWait(self.driver, 15)
+
+                frame_det = wait_frame.until(
+                    EC.presence_of_element_located((By.NAME, "det"))
+                )
+                self.log("  ✓ Frame 'det' encontrado")
+
+                self.driver.switch_to.frame(frame_det)
+                self.log("  ✓ Cambio al frame 'det' exitoso")
+                time.sleep(2)
+
+                # PASO 3: Verificar que el campo 'modalidad' existe
+                self.log("  → PASO 3: Verificando campo 'modalidad'...")
+
+                # Intentar múltiples métodos para encontrar modalidad
+                campo_encontrado = False
+
+                # Método 1: Por NAME
+                try:
+                    campo_modalidad = wait_frame.until(
+                        EC.presence_of_element_located((By.NAME, "modalidad"))
+                    )
+                    if campo_modalidad:
+                        self.log("  ✅ ¡Campo 'modalidad' encontrado por NAME!")
+                        campo_encontrado = True
+                except:
+                    pass
+
+                # Método 2: Por XPATH
+                if not campo_encontrado:
+                    try:
+                        campo_modalidad = self.driver.find_element(By.XPATH, "//select[@name='modalidad']")
+                        if campo_modalidad:
+                            self.log("  ✅ ¡Campo 'modalidad' encontrado por XPATH!")
+                            campo_encontrado = True
+                    except:
+                        pass
+
+                # Método 3: Verificar con JavaScript
+                if not campo_encontrado:
+                    try:
+                        resultado = self.driver.execute_script("""
+                            var campo = document.getElementsByName('modalidad')[0];
+                            return campo !== undefined && campo !== null;
+                        """)
+                        if resultado:
+                            self.log("  ✅ ¡Campo 'modalidad' encontrado por JavaScript!")
+                            campo_encontrado = True
+                    except:
+                        pass
+
+                if campo_encontrado:
+                    self.log("  ✅ Formulario Sección 2 completamente cargado")
+                    return True
+                else:
+                    self.log("  ⚠️ Campo 'modalidad' no encontrado, esperando...")
+                    time.sleep(3)
+
+            except TimeoutException:
+                self.log(f"  ⏱️ Timeout en intento {intento}")
+                if intento < 3:
+                    time.sleep(3)
+
+            except Exception as e:
+                self.log(f"  ❌ Error en intento {intento}: {str(e)[:100]}")
+                if intento < 3:
+                    time.sleep(3)
+
+        self.log("  ❌ FALLO: No se pudo acceder al formulario Sección 2")
+        return False
+
     def encontrar_campo_en_cualquier_iframe(self, by, valor, max_intentos=3):
         """
         MÉTODO ULTRA ROBUSTO
@@ -2587,6 +2694,13 @@ class BotDenunciasSUNAT:
                     self.log("  ✅ Título 'ATENCIÓN DE DENUNCIAS' detectado")
             except:
                 self.log("  ⚠️ No se detectó el título en 20 segundos")
+
+            # PASO CRÍTICO 2: Navegar al iframe correcto para Sección 2
+            self.log("  → Navegando al iframe de Sección 2...")
+            if not self.cambiar_a_iframe_seccion2():
+                raise Exception("No se pudo navegar al iframe de Sección 2")
+
+            self.log("  ✅ Iframe de Sección 2 cargado correctamente")
 
             # 5. Modalidad Evasión (Columna C) - USAR MÉTODO ROBUSTO
             valor_seleccionado = None
