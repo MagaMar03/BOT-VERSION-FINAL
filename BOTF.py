@@ -469,6 +469,30 @@ class BotDenunciasSUNAT:
                     except:
                         pass
 
+                # Método 4: Por TEXTO LITERAL visible (lo que el usuario ve en pantalla)
+                # Busca por el texto "*Modalidad Evasión Denunciada" que aparece en el label/td
+                if not campo_encontrado:
+                    try:
+                        xpaths_texto_literal = [
+                            "//td[contains(text(),'*Modalidad')]/following::select[1]",
+                            "//td[contains(text(),'Modalidad Evasión')]/following::select[1]",
+                            "//label[contains(text(),'Modalidad')]/following::select[1]",
+                            "//td[@class='gamma'][contains(.,'Modalidad')]//select",
+                            "//*[contains(text(),'*Modalidad Evasión Denunciada')]/following::select[1]"
+                        ]
+
+                        for xpath_literal in xpaths_texto_literal:
+                            try:
+                                campo_modalidad = self.driver.find_element(By.XPATH, xpath_literal)
+                                if campo_modalidad and campo_modalidad.is_displayed():
+                                    self.log(f"  ✅ ¡Campo 'modalidad' encontrado por TEXTO LITERAL! (XPath: {xpath_literal[:50]}...)")
+                                    campo_encontrado = True
+                                    break
+                            except:
+                                continue
+                    except:
+                        pass
+
                 if campo_encontrado:
                     self.log("  ✅ Formulario Sección 2 completamente cargado")
                     return True
