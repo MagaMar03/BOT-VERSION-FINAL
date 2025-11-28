@@ -551,8 +551,176 @@ class BotDenunciasSUNAT:
                 if intento < 3:
                     time.sleep(3)
 
-        self.log("  ❌ FALLO: No se pudo acceder al formulario Sección 2")
+        # ═══════════════════════════════════════════════════════════════════
+        # MÉTODO 5 (ÚLTIMO RECURSO): BÚSQUEDA FORZADA ULTRA AGRESIVA
+        # ═══════════════════════════════════════════════════════════════════
+        self.log("  🚨 Activando MÉTODO 5: Búsqueda forzada ultra agresiva...")
+        elemento_forzado = self.forzar_busqueda_elemento("modalidad", "select", timeout_total=60)
+
+        if elemento_forzado:
+            self.log("  ✅ ¡Campo 'modalidad' encontrado con búsqueda forzada!")
+            self.log("  ✅ Formulario Sección 2 completamente cargado")
+            return True
+
+        self.log("  ❌ FALLO: No se pudo acceder al formulario Sección 2 ni con búsqueda forzada")
         return False
+
+    def forzar_busqueda_elemento(self, nombre_campo, tipo_elemento="select", timeout_total=60):
+        """
+        🚨 MÉTODO ULTRA AGRESIVO - BUSCA EL ELEMENTO SIN IMPORTAR DÓNDE ESTÉ
+
+        Este método NO SE RINDE hasta encontrar el elemento o agotar el tiempo.
+        Busca en TODOS los iframes posibles, con TODOS los métodos posibles.
+
+        Args:
+            nombre_campo: nombre del campo a buscar (ej: "modalidad")
+            tipo_elemento: tipo de elemento HTML ("select", "input", "textarea", "button")
+            timeout_total: tiempo máximo total en segundos (default 60)
+
+        Returns:
+            WebElement si lo encuentra, None si no
+        """
+        self.log(f"🚨 BÚSQUEDA FORZADA: '{nombre_campo}' ({tipo_elemento})")
+
+        tiempo_inicio = time.time()
+        intento = 0
+
+        # Obtener configuración del campo desde CAMPOS_SUNAT si existe
+        config_campo = self.CAMPOS_SUNAT.get(nombre_campo, {})
+        selectores = config_campo.get("selectores", [nombre_campo])
+        textos_visibles = config_campo.get("textos_visibles", [])
+        xpaths = config_campo.get("xpaths", [])
+
+        while (time.time() - tiempo_inicio) < timeout_total:
+            intento += 1
+            self.log(f"  🔄 Intento {intento} (tiempo transcurrido: {int(time.time() - tiempo_inicio)}s)")
+
+            try:
+                # ═══════════════════════════════════════════════════════
+                # ESTRATEGIA 1: Búsqueda recursiva en TODOS los contextos
+                # ═══════════════════════════════════════════════════════
+                self.driver.switch_to.default_content()
+
+                # Lista de todos los contextos a revisar
+                contextos_a_revisar = []
+
+                # Contexto principal
+                contextos_a_revisar.append(("main", []))
+
+                # Detectar todos los iframes
+                iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                self.log(f"  → Detectados {len(iframes)} iframes en nivel 1")
+
+                for i, iframe in enumerate(iframes):
+                    iframe_name = iframe.get_attribute("name") or iframe.get_attribute("id") or f"iframe_{i}"
+                    contextos_a_revisar.append((f"iframe:{iframe_name}", [i]))
+
+                    # Entrar al iframe y detectar frames internos
+                    try:
+                        self.driver.switch_to.default_content()
+                        self.driver.switch_to.frame(i)
+
+                        frames = self.driver.find_elements(By.TAG_NAME, "frame")
+                        frames.extend(self.driver.find_elements(By.TAG_NAME, "iframe"))
+
+                        for j, frame in enumerate(frames):
+                            frame_name = frame.get_attribute("name") or frame.get_attribute("id") or f"frame_{j}"
+                            contextos_a_revisar.append((f"iframe:{iframe_name}→frame:{frame_name}", [i, j]))
+
+                        self.driver.switch_to.default_content()
+                    except:
+                        self.driver.switch_to.default_content()
+
+                self.log(f"  → Total de {len(contextos_a_revisar)} contextos a revisar")
+
+                # ═══════════════════════════════════════════════════════
+                # BUSCAR EN CADA CONTEXTO CON MÚLTIPLES MÉTODOS
+                # ═══════════════════════════════════════════════════════
+                for nombre_contexto, indices in contextos_a_revisar:
+                    try:
+                        # Navegar al contexto
+                        self.driver.switch_to.default_content()
+                        for idx in indices:
+                            self.driver.switch_to.frame(idx)
+
+                        # MÉTODO A: Por NAME
+                        for selector in selectores:
+                            try:
+                                elemento = self.driver.find_element(By.NAME, selector)
+                                if elemento and elemento.is_displayed():
+                                    self.log(f"  ✅ ENCONTRADO en {nombre_contexto} por NAME='{selector}'")
+                                    return elemento
+                            except:
+                                pass
+
+                        # MÉTODO B: Por XPATH directos
+                        for xpath in xpaths:
+                            try:
+                                elemento = self.driver.find_element(By.XPATH, xpath)
+                                if elemento and elemento.is_displayed():
+                                    self.log(f"  ✅ ENCONTRADO en {nombre_contexto} por XPATH")
+                                    return elemento
+                            except:
+                                pass
+
+                        # MÉTODO C: Por TEXTO LITERAL
+                        for texto in textos_visibles:
+                            xpaths_texto = [
+                                f"//td[contains(text(),'{texto}')]/following::{tipo_elemento}[1]",
+                                f"//label[contains(text(),'{texto}')]/following::{tipo_elemento}[1]",
+                                f"//*[contains(text(),'{texto}')]/following::{tipo_elemento}[1]",
+                                f"//td[contains(.,'{texto}')]/following-sibling::td//{tipo_elemento}[1]"
+                            ]
+                            for xpath_txt in xpaths_texto:
+                                try:
+                                    elemento = self.driver.find_element(By.XPATH, xpath_txt)
+                                    if elemento and elemento.is_displayed():
+                                        self.log(f"  ✅ ENCONTRADO en {nombre_contexto} por TEXTO '{texto}'")
+                                        return elemento
+                                except:
+                                    pass
+
+                        # MÉTODO D: Por JavaScript
+                        for selector in selectores:
+                            try:
+                                elemento = self.driver.execute_script(f"""
+                                    var elem = document.getElementsByName('{selector}')[0];
+                                    if (elem && elem.offsetParent !== null) {{
+                                        return elem;
+                                    }}
+                                    return null;
+                                """)
+                                if elemento:
+                                    self.log(f"  ✅ ENCONTRADO en {nombre_contexto} por JavaScript NAME='{selector}'")
+                                    return elemento
+                            except:
+                                pass
+
+                        # MÉTODO E: Búsqueda genérica por tipo de elemento
+                        try:
+                            elementos = self.driver.find_elements(By.TAG_NAME, tipo_elemento)
+                            for elem in elementos:
+                                if elem.is_displayed():
+                                    name_attr = elem.get_attribute("name") or ""
+                                    if nombre_campo.lower() in name_attr.lower():
+                                        self.log(f"  ✅ ENCONTRADO en {nombre_contexto} por búsqueda genérica")
+                                        return elem
+                        except:
+                            pass
+
+                    except:
+                        pass
+
+                # No se encontró en este intento, esperar y reintentar
+                self.log(f"  ⚠️ No encontrado en intento {intento}, esperando 2s...")
+                time.sleep(2)
+
+            except Exception as e:
+                self.log(f"  ⚠️ Error en intento {intento}: {str(e)[:80]}")
+                time.sleep(2)
+
+        self.log(f"  ❌ ELEMENTO '{nombre_campo}' NO ENCONTRADO después de {intento} intentos ({timeout_total}s)")
+        return None
 
     def encontrar_campo_en_cualquier_iframe(self, by, valor, max_intentos=3):
         """
