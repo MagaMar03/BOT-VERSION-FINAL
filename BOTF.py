@@ -429,6 +429,47 @@ class BotDenunciasSUNAT:
                 self.log("  ✓ Cambio al frame 'det' exitoso")
                 time.sleep(2)
 
+                # 🔍 DEBUG: Imprimir información del contexto actual
+                self.log("  🐛 DEBUG: Analizando contenido del frame...")
+                try:
+                    # Contar elementos
+                    selects = self.driver.find_elements(By.TAG_NAME, "select")
+                    inputs = self.driver.find_elements(By.TAG_NAME, "input")
+                    textareas = self.driver.find_elements(By.TAG_NAME, "textarea")
+
+                    self.log(f"  🐛 Total elementos encontrados: {len(selects)} selects, {len(inputs)} inputs, {len(textareas)} textareas")
+
+                    # Listar todos los selects con sus atributos name
+                    if len(selects) > 0:
+                        self.log(f"  🐛 Lista de SELECTS encontrados:")
+                        for i, sel in enumerate(selects[:10]):  # Máximo 10 para no saturar el log
+                            name = sel.get_attribute("name") or "(sin name)"
+                            id_attr = sel.get_attribute("id") or "(sin id)"
+                            visible = "visible" if sel.is_displayed() else "oculto"
+                            self.log(f"      [{i}] name='{name}', id='{id_attr}', {visible}")
+                    else:
+                        self.log("  🐛 ⚠️ NO SE ENCONTRARON SELECTS en el frame")
+
+                    # Verificar si hay texto "ATENCIÓN DE DENUNCIAS" en el page_source
+                    page_source = self.driver.page_source
+                    if "ATENCIÓN DE DENUNCIAS" in page_source:
+                        self.log("  🐛 ✓ Texto 'ATENCIÓN DE DENUNCIAS' encontrado en page_source")
+                    else:
+                        self.log("  🐛 ⚠️ Texto 'ATENCIÓN DE DENUNCIAS' NO encontrado en page_source")
+
+                    # Verificar si hay texto "Modalidad" en el page_source
+                    if "Modalidad" in page_source or "modalidad" in page_source:
+                        self.log("  🐛 ✓ Texto 'Modalidad' encontrado en page_source")
+                    else:
+                        self.log("  🐛 ⚠️ Texto 'Modalidad' NO encontrado en page_source")
+
+                    # Imprimir los primeros 500 caracteres del HTML
+                    self.log(f"  🐛 Primeros 500 caracteres del HTML:")
+                    self.log(f"      {page_source[:500]}")
+
+                except Exception as e_debug:
+                    self.log(f"  🐛 Error en debug: {str(e_debug)[:100]}")
+
                 # PASO 3: Verificar que el campo 'modalidad' existe
                 self.log("  → PASO 3: Verificando campo 'modalidad'...")
 
