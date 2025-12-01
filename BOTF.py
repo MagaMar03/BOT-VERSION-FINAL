@@ -388,11 +388,13 @@ class BotDenunciasSUNAT:
         Después de hacer clic en "Siguiente" en Sección 1, la página cambia a Sección 2
         pero el driver necesita volver a entrar al iframe correcto
 
-        Estructura:
+        Estructura REAL (descubierta por debug):
         - Página principal
           └─ iframe 'iframeApplication'
              └─ frame 'det'
-                └─ Formulario Sección 2 con campo 'modalidad'
+                └─ frameset
+                   └─ frame 'frameDenuncia' ← AQUÍ está el formulario Sección 2
+                      └─ Formulario con campo 'modalidad'
         """
         self.log("  🔍 Navegando al iframe de Sección 2...")
 
@@ -428,6 +430,23 @@ class BotDenunciasSUNAT:
                 self.driver.switch_to.frame(frame_det)
                 self.log("  ✓ Cambio al frame 'det' exitoso")
                 time.sleep(2)
+
+                # PASO 3: Buscar frame 'frameDenuncia' DENTRO de 'det'
+                # El debug mostró que 'det' contiene otro frameset con 'frameDenuncia'
+                self.log("  → PASO 3: Buscando frame 'frameDenuncia' dentro de 'det'...")
+                try:
+                    # Intentar encontrar el frame 'frameDenuncia'
+                    frame_denuncia = wait_frame.until(
+                        EC.presence_of_element_located((By.NAME, "frameDenuncia"))
+                    )
+                    self.log("  ✓ Frame 'frameDenuncia' encontrado")
+
+                    self.driver.switch_to.frame(frame_denuncia)
+                    self.log("  ✓ Cambio al frame 'frameDenuncia' exitoso")
+                    time.sleep(2)
+                except Exception as e_frame:
+                    self.log(f"  ⚠️ No se encontró 'frameDenuncia': {str(e_frame)[:80]}")
+                    self.log("  → Continuando sin entrar a 'frameDenuncia'...")
 
                 # 🔍 DEBUG: Imprimir información del contexto actual
                 self.log("  🐛 DEBUG: Analizando contenido del frame...")
@@ -470,8 +489,8 @@ class BotDenunciasSUNAT:
                 except Exception as e_debug:
                     self.log(f"  🐛 Error en debug: {str(e_debug)[:100]}")
 
-                # PASO 3: Verificar que el campo 'modalidad' existe
-                self.log("  → PASO 3: Verificando campo 'modalidad'...")
+                # PASO 4: Verificar que el campo 'modalidad' existe
+                self.log("  → PASO 4: Verificando campo 'modalidad'...")
 
                 # Intentar múltiples métodos para encontrar modalidad
                 campo_encontrado = False
