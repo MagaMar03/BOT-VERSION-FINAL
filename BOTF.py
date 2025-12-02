@@ -388,13 +388,18 @@ class BotDenunciasSUNAT:
         Después de hacer clic en "Siguiente" en Sección 1, la página cambia a Sección 2
         pero el driver necesita volver a entrar al iframe correcto
 
-        Estructura REAL (descubierta por debug):
+        Estructura REAL (descubierta por debug en múltiples iteraciones):
         - Página principal
-          └─ iframe 'iframeApplication'
-             └─ frame 'det'
+          └─ iframe 'iframeApplication' (PASO 1)
+             └─ frame 'det' (PASO 2)
                 └─ frameset
-                   └─ frame 'frameDenuncia' ← AQUÍ está el formulario Sección 2
-                      └─ Formulario con campo 'modalidad'
+                   └─ frame 'frameDenuncia' (PASO 3 - primer nivel)
+                      └─ frameset
+                         └─ frame 'frameDenuncia' (PASO 3.5 - segundo nivel)
+                            └─ ¡AQUÍ está el formulario Sección 2!
+                               └─ <select name="modalidad">
+
+        NOTA: Hay DOS frames con el MISMO nombre 'frameDenuncia' anidados
         """
         self.log("  🔍 Navegando al iframe de Sección 2...")
 
@@ -447,6 +452,20 @@ class BotDenunciasSUNAT:
                 except Exception as e_frame:
                     self.log(f"  ⚠️ No se encontró 'frameDenuncia': {str(e_frame)[:80]}")
                     self.log("  → Continuando sin entrar a 'frameDenuncia'...")
+
+                # PASO 3.5: Detectar si hay OTRO 'frameDenuncia' anidado (segundo nivel)
+                # El debug mostró que 'frameDenuncia' contiene OTRO frameset con OTRO 'frameDenuncia'
+                self.log("  → PASO 3.5: Verificando si hay otro 'frameDenuncia' anidado...")
+                try:
+                    # Intentar encontrar un segundo frame 'frameDenuncia' dentro del primero
+                    frame_denuncia_nivel2 = self.driver.find_element(By.NAME, "frameDenuncia")
+                    self.log("  ✓ ¡Segundo frame 'frameDenuncia' encontrado!")
+
+                    self.driver.switch_to.frame(frame_denuncia_nivel2)
+                    self.log("  ✓ Cambio al segundo frame 'frameDenuncia' exitoso")
+                    time.sleep(2)
+                except Exception as e_frame2:
+                    self.log(f"  → No hay segundo 'frameDenuncia' (esto es normal): {str(e_frame2)[:60]}")
 
                 # 🔍 DEBUG: Imprimir información del contexto actual
                 self.log("  🐛 DEBUG: Analizando contenido del frame...")
