@@ -2326,8 +2326,304 @@ class BotDenunciasSUNAT:
     # ============================================
     # SECCIÓN 2: ATENCIÓN DE DENUNCIAS
     # ============================================
-    
+
+    def buscar_y_rellenar_con_javascript(self, nombre_campo, valor, tipo="select"):
+        """
+        🚨🚨🚨 MODO NUCLEAR - USA JAVASCRIPT DIRECTO 🚨🚨🚨
+
+        Busca y rellena un campo usando JavaScript puro, sin importar
+        en qué iframe/frame esté. Busca recursivamente hasta nivel 10.
+
+        Args:
+            nombre_campo: nombre del campo (name attribute)
+            valor: valor a rellenar
+            tipo: "select", "input", "textarea", "radio"
+
+        Returns:
+            True si se rellenó exitosamente, False si no
+        """
+        self.log(f"🚨 MODO NUCLEAR: Rellenando '{nombre_campo}' = '{valor[:50] if len(str(valor)) > 50 else valor}'")
+
+        # JavaScript que busca recursivamente en TODOS los frames hasta nivel 10
+        js_code = f"""
+        function buscarYRellenarRecursivo(ventana, nivelActual, nivelMaximo) {{
+            if (nivelActual > nivelMaximo) return false;
+
+            try {{
+                // Buscar en la ventana actual
+                var elementos = ventana.document.getElementsByName('{nombre_campo}');
+                if (elementos.length > 0) {{
+                    var elemento = elementos[0];
+
+                    // Rellenar según el tipo
+                    if ('{tipo}' === 'select') {{
+                        // Para SELECT: buscar la opción que contenga el valor
+                        var opciones = elemento.options;
+                        for (var i = 0; i < opciones.length; i++) {{
+                            var textoOpcion = opciones[i].text.toUpperCase();
+                            var valorBuscado = '{valor}'.toUpperCase();
+
+                            if (textoOpcion.indexOf(valorBuscado) !== -1 ||
+                                valorBuscado.indexOf(textoOpcion) !== -1) {{
+                                elemento.selectedIndex = i;
+                                elemento.value = opciones[i].value;
+
+                                // Disparar eventos
+                                elemento.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                elemento.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+
+                                // Ejecutar onchange si existe
+                                if (elemento.onchange) {{
+                                    elemento.onchange();
+                                }}
+
+                                return true;
+                            }}
+                        }}
+                    }} else if ('{tipo}' === 'textarea' || '{tipo}' === 'input') {{
+                        elemento.value = '{valor}';
+                        elemento.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        elemento.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        elemento.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+
+                        if (elemento.onblur) elemento.onblur();
+                        if (elemento.onchange) elemento.onchange();
+
+                        return true;
+                    }} else if ('{tipo}' === 'radio') {{
+                        elemento.checked = true;
+                        elemento.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        elemento.dispatchEvent(new Event('click', {{ bubbles: true }}));
+
+                        if (elemento.onclick) elemento.onclick();
+
+                        return true;
+                    }}
+                }}
+
+                // Buscar en todos los iframes/frames de esta ventana
+                var frames = ventana.frames;
+                for (var i = 0; i < frames.length; i++) {{
+                    try {{
+                        if (buscarYRellenarRecursivo(frames[i], nivelActual + 1, nivelMaximo)) {{
+                            return true;
+                        }}
+                    }} catch (e) {{
+                        // Acceso denegado al frame, continuar
+                    }}
+                }}
+
+                return false;
+            }} catch (e) {{
+                return false;
+            }}
+        }}
+
+        // Iniciar búsqueda desde window.top (nivel más alto)
+        return buscarYRellenarRecursivo(window.top, 0, 10);
+        """
+
+        try:
+            # Ejecutar el JavaScript
+            resultado = self.driver.execute_script(js_code)
+
+            if resultado:
+                self.log(f"  ✅ Campo '{nombre_campo}' rellenado con éxito usando JavaScript")
+                return True
+            else:
+                self.log(f"  ⚠️ No se encontró el campo '{nombre_campo}' en ningún frame")
+                return False
+
+        except Exception as e:
+            self.log(f"  ❌ Error ejecutando JavaScript: {str(e)[:100]}")
+            return False
+
     def llenar_seccion2_atencion_denuncias(self, datos):
+        try:
+            self.log("📝 Llenando Sección 2: ATENCIÓN DE DENUNCIAS...")
+            self.log("🚨🚨🚨 USANDO MODO NUCLEAR - JavaScript directo 🚨🚨🚨")
+
+            # Esperar 5 segundos para que la página cargue completamente
+            self.log("  ⏳ Esperando 5 segundos para carga completa...")
+            time.sleep(5)
+
+            # ═══════════════════════════════════════════════════════════════
+            # MODO NUCLEAR: Rellenar TODO con JavaScript directo
+            # ═══════════════════════════════════════════════════════════════
+
+            # 1. Modalidad Evasión
+            if 'Modalidad de evasion' in datos and pd.notna(datos['Modalidad de evasion']):
+                valor = str(datos['Modalidad de evasion']).strip()
+                self.log(f"\n📋 CAMPO 1: Modalidad Evasión")
+                self.buscar_y_rellenar_con_javascript("modalidad", valor, "select")
+                time.sleep(2)
+
+            # 2. Tipo de Denuncia (Radio button)
+            if 'Tipo de denuncia' in datos and pd.notna(datos['Tipo de denuncia']):
+                valor_tipo = str(datos['Tipo de denuncia']).strip()
+                self.log(f"\n📋 CAMPO 2: Tipo de Denuncia")
+
+                mapeo_tipo = {
+                    "telefónica": "1", "telefonica": "1",
+                    "verbal": "2",
+                    "escrita": "3",
+                    "formato electrónico": "4", "formato electronico": "4", "electronico": "4"
+                }
+                valor_radio = mapeo_tipo.get(valor_tipo.lower(), "4")
+
+                # Usar JavaScript para hacer clic en el radio button
+                js_radio = f"""
+                var radios = window.top.document.querySelectorAll("input[name='rdoTipo'][value='{valor_radio}']");
+                function buscarEnFrames(win) {{
+                    try {{
+                        var radios = win.document.querySelectorAll("input[name='rdoTipo'][value='{valor_radio}']");
+                        if (radios.length > 0) {{
+                            radios[0].checked = true;
+                            if (radios[0].onclick) radios[0].onclick();
+                            return true;
+                        }}
+                        for (var i = 0; i < win.frames.length; i++) {{
+                            if (buscarEnFrames(win.frames[i])) return true;
+                        }}
+                    }} catch(e) {{}}
+                    return false;
+                }}
+                return buscarEnFrames(window.top);
+                """
+
+                try:
+                    resultado = self.driver.execute_script(js_radio)
+                    if resultado:
+                        self.log(f"  ✅ Radio button '{valor_tipo}' seleccionado")
+                    else:
+                        self.log(f"  ⚠️ No se pudo seleccionar radio button")
+                except Exception as e:
+                    self.log(f"  ⚠️ Error: {str(e)[:80]}")
+
+                time.sleep(1)
+
+            # 3. Detalle de la Denuncia (TEXTAREA)
+            if 'Descripcion de los hechos' in datos and pd.notna(datos['Descripcion de los hechos']):
+                valor_detalle = str(datos['Descripcion de los hechos']).strip()
+                self.log(f"\n📋 CAMPO 3: Detalle de la Denuncia")
+                self.buscar_y_rellenar_con_javascript("detalle", valor_detalle, "textarea")
+                time.sleep(1)
+
+            # 4. Mes Desde
+            if 'Mes Desde' in datos and pd.notna(datos['Mes Desde']):
+                valor_mes = str(datos['Mes Desde']).strip()
+                self.log(f"\n📋 CAMPO 4: Mes Desde")
+                self.buscar_y_rellenar_con_javascript("MesDesde", valor_mes, "select")
+                time.sleep(0.5)
+
+            # 5. Año Desde
+            if 'Anio Desde' in datos and pd.notna(datos['Anio Desde']):
+                valor_anio = str(int(datos['Anio Desde']))
+                self.log(f"\n📋 CAMPO 5: Año Desde")
+                self.buscar_y_rellenar_con_javascript("AnioDesde", valor_anio, "select")
+                time.sleep(0.5)
+
+            # 6. Mes Hasta
+            if 'Mes Hasta' in datos and pd.notna(datos['Mes Hasta']):
+                valor_mes = str(datos['Mes Hasta']).strip()
+                self.log(f"\n📋 CAMPO 6: Mes Hasta")
+                self.buscar_y_rellenar_con_javascript("MesHasta", valor_mes, "select")
+                time.sleep(0.5)
+
+            # 7. Año Hasta
+            if 'Anio Hasta' in datos and pd.notna(datos['Anio Hasta']):
+                valor_anio = str(int(datos['Anio Hasta']))
+                self.log(f"\n📋 CAMPO 7: Año Hasta")
+                self.buscar_y_rellenar_con_javascript("AnioHasta", valor_anio, "select")
+                time.sleep(0.5)
+
+            # 8. Pruebas Ofrecidas (Radio button - NO por defecto)
+            self.log(f"\n📋 CAMPO 8: Pruebas Ofrecidas = NO")
+            js_pruebas = """
+            function buscarEnFrames(win) {
+                try {
+                    var radios = win.document.querySelectorAll("input[name='tipoPru'][value='N']");
+                    if (radios.length > 0) {
+                        radios[0].checked = true;
+                        if (radios[0].onclick) radios[0].onclick();
+                        return true;
+                    }
+                    for (var i = 0; i < win.frames.length; i++) {
+                        if (buscarEnFrames(win.frames[i])) return true;
+                    }
+                } catch(e) {}
+                return false;
+            }
+            return buscarEnFrames(window.top);
+            """
+
+            try:
+                self.driver.execute_script(js_pruebas)
+                self.log("  ✅ Pruebas = NO seleccionado")
+            except:
+                pass
+
+            time.sleep(2)
+
+            # ═══════════════════════════════════════════════════════════════
+            # HACER CLIC EN BOTÓN SIGUIENTE con JavaScript
+            # ═══════════════════════════════════════════════════════════════
+            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN SIGUIENTE (JavaScript)...")
+
+            js_boton = """
+            function buscarYClickBoton(win) {
+                try {
+                    // Método 1: Por función onclick
+                    var botones = win.document.querySelectorAll("input[onclick*='clickbtn_validar']");
+                    if (botones.length > 0) {
+                        botones[0].click();
+                        return true;
+                    }
+
+                    // Método 2: Por valor del botón
+                    botones = win.document.querySelectorAll("input[value*='Siguiente']");
+                    if (botones.length > 0) {
+                        botones[0].click();
+                        return true;
+                    }
+
+                    // Método 3: Ejecutar función directamente
+                    if (typeof win.clickbtn_validar === 'function') {
+                        win.clickbtn_validar();
+                        return true;
+                    }
+
+                    // Buscar en frames
+                    for (var i = 0; i < win.frames.length; i++) {
+                        if (buscarYClickBoton(win.frames[i])) return true;
+                    }
+                } catch(e) {}
+                return false;
+            }
+            return buscarYClickBoton(window.top);
+            """
+
+            try:
+                resultado = self.driver.execute_script(js_boton)
+                if resultado:
+                    self.log("  ✅ Botón SIGUIENTE clickeado con JavaScript")
+                else:
+                    self.log("  ⚠️ No se encontró el botón SIGUIENTE")
+            except Exception as e:
+                self.log(f"  ⚠️ Error: {str(e)[:80]}")
+
+            time.sleep(3)
+
+            self.log("\n" + "="*70)
+            self.log("✅✅✅ SECCIÓN 2 COMPLETADA (MODO NUCLEAR) ✅✅✅")
+            self.log("="*70)
+            return True
+
+        except Exception as e:
+            self.log(f"\n❌ ERROR EN SECCIÓN 2: {str(e)}")
+            return False
+
+    def llenar_seccion2_atencion_denuncias_ANTIGUO(self, datos):
         try:
             self.log("📝 Llenando Sección 2: ATENCIÓN DE DENUNCIAS...")
 
