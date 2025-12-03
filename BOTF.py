@@ -666,6 +666,21 @@ class BotDenunciasSUNAT:
         },
 
         # ─────────────────────────────────────────────────────────────────────────
+        # SECCIÓN 2: ATENCIÓN DE DENUNCIAS
+        # ─────────────────────────────────────────────────────────────────────────
+        "modalidad": {
+            "tipo": "select",
+            "selectores": ["modalidad", "mod", "cboModalidad", "modalidadEvasion"],
+            "textos_visibles": ["Modalidad Evasión Denunciada", "Modalidad", "MODALIDAD"],
+            "xpaths": [
+                "//select[@name='modalidad']",
+                "//select[contains(@id,'modalidad')]",
+                "//td[contains(text(),'Modalidad')]/following::select[1]",
+                "//label[contains(text(),'Modalidad')]/following::select[1]"
+            ]
+        },
+
+        # ─────────────────────────────────────────────────────────────────────────
         # BOTONES DE ACCIÓN
         # ─────────────────────────────────────────────────────────────────────────
         "buscar": {
