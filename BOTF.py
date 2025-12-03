@@ -1426,22 +1426,58 @@ class BotDenunciasSUNAT:
 
             # 🔥 CRÍTICO: Disparar eventos JavaScript para que el formulario lo registre
             try:
-                self.driver.execute_script("""
-                    var elemento = arguments[0];
-                    // Disparar eventos change, input y blur
-                    elemento.dispatchEvent(new Event('change', { bubbles: true }));
-                    elemento.dispatchEvent(new Event('input', { bubbles: true }));
-                    elemento.dispatchEvent(new Event('blur', { bubbles: true }));
+                self.log(f"  🎯 Disparando eventos para activar campos dinámicos...")
 
-                    // También intentar llamar función onChange si existe
-                    if (elemento.onchange) {
-                        elemento.onchange();
+                # Ejecutar script que simula interacción real del usuario
+                resultado = self.driver.execute_script("""
+                    var elemento = arguments[0];
+                    var eventos_disparados = [];
+
+                    try {
+                        // 1. Evento FOCUS (usuario enfoca el campo)
+                        elemento.focus();
+                        elemento.dispatchEvent(new Event('focus', { bubbles: true }));
+                        eventos_disparados.push('focus');
+
+                        // 2. Evento CHANGE (usuario cambia el valor)
+                        elemento.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                        eventos_disparados.push('change');
+
+                        // 3. Evento INPUT (entrada de datos)
+                        elemento.dispatchEvent(new Event('input', { bubbles: true }));
+                        eventos_disparados.push('input');
+
+                        // 4. Llamar función onchange() si existe (formularios antiguos)
+                        if (typeof elemento.onchange === 'function') {
+                            elemento.onchange();
+                            eventos_disparados.push('onchange()');
+                        }
+
+                        // 5. Evento BLUR (usuario sale del campo)
+                        elemento.dispatchEvent(new Event('blur', { bubbles: true }));
+                        eventos_disparados.push('blur');
+
+                        // 6. Disparar evento personalizado de jQuery si existe
+                        if (typeof jQuery !== 'undefined') {
+                            jQuery(elemento).trigger('change');
+                            eventos_disparados.push('jQuery.trigger');
+                        }
+
+                        return { success: true, eventos: eventos_disparados };
+                    } catch (error) {
+                        return { success: false, error: error.toString() };
                     }
                 """, elemento)
-                self.log(f"  ✅ Eventos onChange disparados correctamente")
-                time.sleep(0.5)  # Esperar a que se procesen los eventos
+
+                if resultado.get('success'):
+                    eventos = ', '.join(resultado.get('eventos', []))
+                    self.log(f"  ✅ Eventos disparados: {eventos}")
+                else:
+                    self.log(f"  ⚠️ Error al disparar eventos: {resultado.get('error', 'unknown')}")
+
+                time.sleep(0.8)  # Esperar a que se procesen los eventos
             except Exception as e:
-                self.log(f"  ⚠️ No se pudieron disparar eventos: {str(e)[:50]}")
+                self.log(f"  ⚠️ Excepción al disparar eventos: {str(e)[:50]}")
 
             # Verificar que el valor quedó seleccionado
             try:
@@ -2405,15 +2441,34 @@ class BotDenunciasSUNAT:
 
                 # MÉTODO ROBUSTO: Búsqueda con múltiples estrategias y espera extendida
                 if self.llenar_campo_con_espera_robusta("modalidad", valor, "select", timeout=20):
+                    self.log("  ✅ Modalidad seleccionada exitosamente")
+
                     # Obtener el valor seleccionado para usar en submodalidad
                     try:
                         elemento_modalidad = self.buscar_elemento_universal("modalidad", "select")
                         if elemento_modalidad:
                             select_obj = Select(elemento_modalidad)
                             valor_seleccionado = select_obj.first_selected_option.get_attribute("value")
+                            self.log(f"  ✓ Valor interno de modalidad: {valor_seleccionado}")
                     except:
                         pass
-                    time.sleep(1)
+
+                    # 🔥 CRÍTICO: Esperar a que los campos dinámicos se carguen
+                    # Después de seleccionar modalidad, el formulario carga campos condicionales
+                    self.log("  ⏳ Esperando carga de campos dinámicos (submodalidad, tipo denuncia)...")
+                    time.sleep(2)  # Espera inicial para AJAX
+
+                    # Verificar que la página procesó el cambio
+                    try:
+                        # Esperar a que desaparezca cualquier indicador de carga
+                        WebDriverWait(self.driver, 5).until(
+                            lambda d: d.execute_script("return document.readyState") == "complete"
+                        )
+                        self.log("  ✅ Página lista después de cambio de modalidad")
+                    except:
+                        self.log("  ⚠️ Timeout esperando carga completa, continuando...")
+
+                    time.sleep(1)  # Espera adicional de seguridad
                 else:
                     raise Exception("No se pudo seleccionar Modalidad")
             
