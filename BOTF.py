@@ -679,6 +679,88 @@ class BotDenunciasSUNAT:
                 "//label[contains(text(),'Modalidad')]/following::select[1]"
             ]
         },
+        "detalle": {
+            "tipo": "textarea",
+            "selectores": ["detalle", "txtDetalle", "detalledenuncia", "detalleDenuncia"],
+            "textos_visibles": ["DETALLE DE LA DENUNCIA", "Detalle de la denuncia", "Detalle", "DETALLE"],
+            "xpaths": [
+                "//textarea[@name='detalle']",
+                "//textarea[contains(@id,'detalle')]",
+                "//td[contains(text(),'DETALLE')]/following::textarea[1]",
+                "//label[contains(text(),'DETALLE')]/following::textarea[1]"
+            ]
+        },
+        "fecha_sid": {
+            "tipo": "input",
+            "selectores": ["fecha_sid", "fechaSID", "fechaSid", "fecSid"],
+            "textos_visibles": ["Fecha SID", "FECHA SID", "Fecha SID o Control Documentario"],
+            "xpaths": [
+                "//input[@name='fecha_sid']",
+                "//input[contains(@id,'fecha')]",
+                "//input[contains(@id,'sid')]",
+                "//td[contains(text(),'Fecha SID')]/following::input[1]"
+            ]
+        },
+        "MesDesde": {
+            "tipo": "select",
+            "selectores": ["MesDesde", "mesDesde", "mes_desde", "cboMesDesde"],
+            "textos_visibles": ["Del Mes", "Mes Desde", "DEL MES"],
+            "xpaths": [
+                "//select[@name='MesDesde']",
+                "//select[contains(@id,'MesDesde')]",
+                "//td[contains(text(),'Del Mes')]/following::select[1]"
+            ]
+        },
+        "AnioDesde": {
+            "tipo": "select",
+            "selectores": ["AnioDesde", "anioDesde", "anio_desde", "cboAnioDesde"],
+            "textos_visibles": ["Del Año", "Año Desde", "DEL AÑO"],
+            "xpaths": [
+                "//select[@name='AnioDesde']",
+                "//select[contains(@id,'AnioDesde')]",
+                "//td[contains(text(),'Del Año')]/following::select[1]"
+            ]
+        },
+        "MesHasta": {
+            "tipo": "select",
+            "selectores": ["MesHasta", "mesHasta", "mes_hasta", "cboMesHasta"],
+            "textos_visibles": ["Al Mes", "Mes Hasta", "AL MES"],
+            "xpaths": [
+                "//select[@name='MesHasta']",
+                "//select[contains(@id,'MesHasta')]",
+                "//td[contains(text(),'Al Mes')]/following::select[1]"
+            ]
+        },
+        "AnioHasta": {
+            "tipo": "select",
+            "selectores": ["AnioHasta", "anioHasta", "anio_hasta", "cboAnioHasta"],
+            "textos_visibles": ["Al Año", "Año Hasta", "AL AÑO"],
+            "xpaths": [
+                "//select[@name='AnioHasta']",
+                "//select[contains(@id,'AnioHasta')]",
+                "//td[contains(text(),'Al Año')]/following::select[1]"
+            ]
+        },
+        "elementos": {
+            "tipo": "select",
+            "selectores": ["elementos", "elem", "cboElementos", "tipoPruebas"],
+            "textos_visibles": ["Tipo de Pruebas", "Elementos", "ELEMENTOS"],
+            "xpaths": [
+                "//select[@name='elementos']",
+                "//select[contains(@id,'elemento')]",
+                "//td[contains(text(),'Tipo de Pruebas')]/following::select[1]"
+            ]
+        },
+        "otros": {
+            "tipo": "input",
+            "selectores": ["otros", "txtOtros", "detalle_otros", "otrosDetalle"],
+            "textos_visibles": ["Otros", "OTROS", "Detalle Otros", "Otros, detalle"],
+            "xpaths": [
+                "//input[@name='otros']",
+                "//input[contains(@id,'otros')]",
+                "//td[contains(text(),'Otros')]/following::input[1]"
+            ]
+        },
 
         # ─────────────────────────────────────────────────────────────────────────
         # BOTONES DE ACCIÓN
@@ -1227,8 +1309,11 @@ class BotDenunciasSUNAT:
         try:
             if tipo_elemento == "select":
                 return self._llenar_select_inteligente(elemento, valor, nombre_campo)
+            elif tipo_elemento in ["input", "textarea"]:
+                # Input o Textarea - con disparo de eventos
+                return self._llenar_input_inteligente(elemento, valor, nombre_campo, tipo_elemento)
             else:
-                # Input normal
+                # Tipo desconocido - método básico
                 try:
                     elemento.clear()
                     time.sleep(0.2)
@@ -1507,6 +1592,115 @@ class BotDenunciasSUNAT:
             return True
 
         return False
+
+    def _llenar_input_inteligente(self, elemento, valor, nombre_campo, tipo_elemento):
+        """
+        🎯 Llena un INPUT o TEXTAREA con disparo completo de eventos JavaScript
+
+        Similar a _llenar_select_inteligente pero para campos de texto.
+        Dispara TODOS los eventos necesarios para que el formulario lo detecte.
+
+        Args:
+            elemento: WebElement del input/textarea
+            valor: Valor a ingresar
+            nombre_campo: Nombre del campo (para logs)
+            tipo_elemento: "input" o "textarea"
+        """
+        try:
+            # Limpiar el campo primero
+            try:
+                elemento.clear()
+                time.sleep(0.2)
+            except:
+                # Si clear() falla, usar JavaScript
+                self.driver.execute_script("arguments[0].value = '';", elemento)
+                time.sleep(0.2)
+
+            # Ingresar el valor de forma natural (simulando escritura)
+            try:
+                elemento.send_keys(valor)
+                self.log(f"  ✅ Valor ingresado: '{valor[:50]}{'...' if len(valor) > 50 else ''}'")
+            except:
+                # Fallback: usar JavaScript directo
+                # Escapar comillas simples en el valor
+                valor_escapado = valor.replace("'", "\\'").replace("\n", "\\n")
+                self.driver.execute_script(f"arguments[0].value = '{valor_escapado}';", elemento)
+                self.log(f"  ✅ Valor ingresado (JS): '{valor[:50]}{'...' if len(valor) > 50 else ''}'")
+
+            # 🔥 CRÍTICO: Disparar eventos JavaScript para que el formulario lo registre
+            try:
+                self.log(f"  🎯 Disparando eventos para campo {tipo_elemento}...")
+
+                resultado = self.driver.execute_script("""
+                    var elemento = arguments[0];
+                    var eventos_disparados = [];
+
+                    try {
+                        // 1. Evento FOCUS (usuario enfoca el campo)
+                        elemento.focus();
+                        elemento.dispatchEvent(new Event('focus', { bubbles: true }));
+                        eventos_disparados.push('focus');
+
+                        // 2. Evento INPUT (usuario escribe)
+                        elemento.dispatchEvent(new Event('input', { bubbles: true }));
+                        eventos_disparados.push('input');
+
+                        // 3. Evento KEYUP (usuario suelta tecla)
+                        elemento.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+                        eventos_disparados.push('keyup');
+
+                        // 4. Evento CHANGE (valor cambió)
+                        elemento.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                        eventos_disparados.push('change');
+
+                        // 5. Llamar función onchange() si existe (formularios antiguos)
+                        if (typeof elemento.onchange === 'function') {
+                            elemento.onchange();
+                            eventos_disparados.push('onchange()');
+                        }
+
+                        // 6. Evento BLUR (usuario sale del campo)
+                        elemento.dispatchEvent(new Event('blur', { bubbles: true }));
+                        eventos_disparados.push('blur');
+
+                        // 7. Disparar evento personalizado de jQuery si existe
+                        if (typeof jQuery !== 'undefined') {
+                            jQuery(elemento).trigger('change');
+                            jQuery(elemento).trigger('input');
+                            eventos_disparados.push('jQuery.trigger');
+                        }
+
+                        return { success: true, eventos: eventos_disparados };
+                    } catch (error) {
+                        return { success: false, error: error.toString() };
+                    }
+                """, elemento)
+
+                if resultado.get('success'):
+                    eventos = ', '.join(resultado.get('eventos', []))
+                    self.log(f"  ✅ Eventos disparados: {eventos}")
+                else:
+                    self.log(f"  ⚠️ Error al disparar eventos: {resultado.get('error', 'unknown')}")
+
+                time.sleep(0.5)  # Esperar a que se procesen los eventos
+            except Exception as e:
+                self.log(f"  ⚠️ Excepción al disparar eventos: {str(e)[:50]}")
+
+            # Verificar que el valor quedó ingresado
+            try:
+                valor_actual = elemento.get_attribute('value')
+                if valor_actual == valor:
+                    self.log(f"  ✓ Verificación: valor guardado correctamente")
+                else:
+                    self.log(f"  ⚠️ Verificación: valor esperado '{valor[:20]}...' pero guardado '{valor_actual[:20]}...'")
+            except:
+                pass
+
+            return True
+
+        except Exception as e:
+            self.log(f"  ❌ Error al llenar {tipo_elemento}: {str(e)[:100]}")
+            return False
 
     def clic_boton_universal(self, nombre_boton):
         """
