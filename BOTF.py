@@ -1314,6 +1314,8 @@ class BotDenunciasSUNAT:
         6. Búsqueda de palabras parciales
 
         Si no encuentra, muestra TODAS las opciones disponibles
+
+        IMPORTANTE: Dispara eventos onChange para que el formulario registre el cambio
         """
         select = Select(elemento)
         opciones = select.options
@@ -1327,78 +1329,113 @@ class BotDenunciasSUNAT:
         valor_upper = valor_buscar.upper()
         valor_lower = valor_buscar.lower()
 
+        texto_seleccionado = None
+
         # ═══════════════════════════════════════════════════════════
         # ESTRATEGIA 1: Coincidencia EXACTA
         # ═══════════════════════════════════════════════════════════
         for idx, texto in opciones_texto:
             if texto == valor_buscar:
-                select.select_by_visible_text(texto)
-                self.log(f"  ✅ Seleccionado (exacto): '{texto}'")
-                return True
+                texto_seleccionado = texto
+                break
 
         # ═══════════════════════════════════════════════════════════
         # ESTRATEGIA 2: Coincidencia exacta SIN MAYÚSCULAS
         # ═══════════════════════════════════════════════════════════
-        for idx, texto in opciones_texto:
-            if texto.upper() == valor_upper:
-                select.select_by_visible_text(texto)
-                self.log(f"  ✅ Seleccionado (sin mayúsculas): '{texto}'")
-                return True
+        if not texto_seleccionado:
+            for idx, texto in opciones_texto:
+                if texto.upper() == valor_upper:
+                    texto_seleccionado = texto
+                    break
 
         # ═══════════════════════════════════════════════════════════
         # ESTRATEGIA 3: Valor del Excel CONTENIDO en opción
         # Ejemplo: Excel="DNI" → Opción="6 - DNI"
         # ═══════════════════════════════════════════════════════════
-        for idx, texto in opciones_texto:
-            if valor_upper in texto.upper():
-                select.select_by_visible_text(texto)
-                self.log(f"  ✅ Seleccionado (contenido): '{texto}' contiene '{valor_buscar}'")
-                return True
+        if not texto_seleccionado:
+            for idx, texto in opciones_texto:
+                if valor_upper in texto.upper():
+                    texto_seleccionado = texto
+                    break
 
         # ═══════════════════════════════════════════════════════════
         # ESTRATEGIA 4: Opción CONTENIDA en valor del Excel
         # Ejemplo: Excel="DOCUMENTO NACIONAL DE IDENTIDAD" → Opción="DNI"
         # ═══════════════════════════════════════════════════════════
-        for idx, texto in opciones_texto:
-            if texto.upper() in valor_upper:
-                select.select_by_visible_text(texto)
-                self.log(f"  ✅ Seleccionado (inverso): '{valor_buscar}' contiene '{texto}'")
-                return True
+        if not texto_seleccionado:
+            for idx, texto in opciones_texto:
+                if texto.upper() in valor_upper:
+                    texto_seleccionado = texto
+                    break
 
         # ═══════════════════════════════════════════════════════════
         # ESTRATEGIA 5: Búsqueda por PALABRAS CLAVE
         # Divide el valor en palabras y busca coincidencias
         # ═══════════════════════════════════════════════════════════
-        palabras_valor = [p.strip().upper() for p in valor_buscar.split() if len(p.strip()) > 2]
+        if not texto_seleccionado:
+            palabras_valor = [p.strip().upper() for p in valor_buscar.split() if len(p.strip()) > 2]
 
-        if palabras_valor:
-            mejor_coincidencia = None
-            max_coincidencias = 0
+            if palabras_valor:
+                mejor_coincidencia = None
+                max_coincidencias = 0
 
-            for idx, texto in opciones_texto:
-                texto_upper = texto.upper()
-                coincidencias = sum(1 for palabra in palabras_valor if palabra in texto_upper)
+                for idx, texto in opciones_texto:
+                    texto_upper = texto.upper()
+                    coincidencias = sum(1 for palabra in palabras_valor if palabra in texto_upper)
 
-                if coincidencias > max_coincidencias:
-                    max_coincidencias = coincidencias
-                    mejor_coincidencia = (idx, texto)
+                    if coincidencias > max_coincidencias:
+                        max_coincidencias = coincidencias
+                        mejor_coincidencia = (idx, texto)
 
-            if mejor_coincidencia and max_coincidencias > 0:
-                select.select_by_visible_text(mejor_coincidencia[1])
-                self.log(f"  ✅ Seleccionado (palabras clave, {max_coincidencias} coincidencias): '{mejor_coincidencia[1]}'")
-                return True
+                if mejor_coincidencia and max_coincidencias > 0:
+                    texto_seleccionado = mejor_coincidencia[1]
 
         # ═══════════════════════════════════════════════════════════
         # ESTRATEGIA 6: Búsqueda PARCIAL por caracteres
         # Busca si los primeros caracteres coinciden
         # ═══════════════════════════════════════════════════════════
-        if len(valor_buscar) >= 3:
+        if not texto_seleccionado and len(valor_buscar) >= 3:
             prefijo = valor_upper[:3]
             for idx, texto in opciones_texto:
                 if texto.upper().startswith(prefijo):
-                    select.select_by_visible_text(texto)
-                    self.log(f"  ✅ Seleccionado (prefijo '{prefijo}'): '{texto}'")
-                    return True
+                    texto_seleccionado = texto
+                    break
+
+        # ═══════════════════════════════════════════════════════════
+        # Si encontramos una opción, seleccionarla y disparar eventos
+        # ═══════════════════════════════════════════════════════════
+        if texto_seleccionado:
+            # Seleccionar usando Selenium
+            select.select_by_visible_text(texto_seleccionado)
+            self.log(f"  ✅ Seleccionado: '{texto_seleccionado}'")
+
+            # 🔥 CRÍTICO: Disparar eventos JavaScript para que el formulario lo registre
+            try:
+                self.driver.execute_script("""
+                    var elemento = arguments[0];
+                    // Disparar eventos change, input y blur
+                    elemento.dispatchEvent(new Event('change', { bubbles: true }));
+                    elemento.dispatchEvent(new Event('input', { bubbles: true }));
+                    elemento.dispatchEvent(new Event('blur', { bubbles: true }));
+
+                    // También intentar llamar función onChange si existe
+                    if (elemento.onchange) {
+                        elemento.onchange();
+                    }
+                """, elemento)
+                self.log(f"  ✅ Eventos onChange disparados correctamente")
+                time.sleep(0.5)  # Esperar a que se procesen los eventos
+            except Exception as e:
+                self.log(f"  ⚠️ No se pudieron disparar eventos: {str(e)[:50]}")
+
+            # Verificar que el valor quedó seleccionado
+            try:
+                valor_actual = select.first_selected_option.text
+                self.log(f"  ✓ Verificación: valor actual = '{valor_actual}'")
+            except:
+                pass
+
+            return True
 
         # ═══════════════════════════════════════════════════════════
         # NO ENCONTRADO: Mostrar TODAS las opciones disponibles
