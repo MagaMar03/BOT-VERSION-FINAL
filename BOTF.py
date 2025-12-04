@@ -2658,44 +2658,146 @@ class BotDenunciasSUNAT:
             except:
                 self.log("  ⚠️ No se detectó el título en 20 segundos")
 
-            # 5. Modalidad Evasión (Columna C) - USAR MÉTODO ROBUSTO
+            # 5. Modalidad Evasión (Columna C) - MÉTODO NUCLEAR CON JAVASCRIPT
             valor_seleccionado = None
             if 'Modalidad de evasion' in datos and pd.notna(datos['Modalidad de evasion']):
                 valor = str(datos['Modalidad de evasion']).strip()
                 self.log(f"  → Modalidad: {valor[:50]}...")
 
-                # MÉTODO ROBUSTO: Búsqueda con múltiples estrategias y espera extendida
-                if self.llenar_campo_con_espera_robusta("modalidad", valor, "select", timeout=20):
-                    self.log("  ✅ Modalidad seleccionada exitosamente")
+                # 🚨🚨🚨 MODO NUCLEAR: JavaScript DIRECTO 🚨🚨🚨
+                self.log("  🚨 Usando MODO NUCLEAR - JavaScript directo")
 
-                    # Obtener el valor seleccionado para usar en submodalidad
-                    try:
-                        elemento_modalidad = self.buscar_elemento_universal("modalidad", "select")
-                        if elemento_modalidad:
-                            select_obj = Select(elemento_modalidad)
-                            valor_seleccionado = select_obj.first_selected_option.get_attribute("value")
-                            self.log(f"  ✓ Valor interno de modalidad: {valor_seleccionado}")
-                    except:
-                        pass
+                # Escapar comillas en el valor
+                valor_escapado = valor.replace("'", "\\'").replace('"', '\\"')
 
-                    # 🔥 CRÍTICO: Esperar a que los campos dinámicos se carguen
-                    # Después de seleccionar modalidad, el formulario carga campos condicionales
-                    self.log("  ⏳ Esperando carga de campos dinámicos (submodalidad, tipo denuncia)...")
-                    time.sleep(2)  # Espera inicial para AJAX
+                try:
+                    resultado = self.driver.execute_script("""
+                        var valorBuscado = arguments[0];
 
-                    # Verificar que la página procesó el cambio
-                    try:
-                        # Esperar a que desaparezca cualquier indicador de carga
-                        WebDriverWait(self.driver, 5).until(
-                            lambda d: d.execute_script("return document.readyState") == "complete"
-                        )
-                        self.log("  ✅ Página lista después de cambio de modalidad")
-                    except:
-                        self.log("  ⚠️ Timeout esperando carga completa, continuando...")
+                        // Buscar el select 'modalidad' en TODOS los contextos
+                        var selectores = [
+                            'select[name="modalidad"]',
+                            'select[id*="modalidad"]',
+                            'select[id*="mod"]'
+                        ];
 
-                    time.sleep(1)  # Espera adicional de seguridad
-                else:
+                        var selectEncontrado = null;
+
+                        // 1. Buscar en documento principal
+                        for (var sel of selectores) {
+                            var elem = document.querySelector(sel);
+                            if (elem) {
+                                selectEncontrado = elem;
+                                break;
+                            }
+                        }
+
+                        // 2. Buscar en todos los iframes
+                        if (!selectEncontrado) {
+                            var iframes = document.querySelectorAll('iframe, frame');
+                            for (var iframe of iframes) {
+                                try {
+                                    var doc = iframe.contentDocument || iframe.contentWindow.document;
+                                    for (var sel of selectores) {
+                                        var elem = doc.querySelector(sel);
+                                        if (elem) {
+                                            selectEncontrado = elem;
+                                            break;
+                                        }
+                                    }
+
+                                    // Buscar en frames anidados dentro del iframe
+                                    if (!selectEncontrado) {
+                                        var framesAnidados = doc.querySelectorAll('frame');
+                                        for (var frameAnidado of framesAnidados) {
+                                            try {
+                                                var docAnidado = frameAnidado.contentDocument || frameAnidado.contentWindow.document;
+                                                for (var sel of selectores) {
+                                                    var elem = docAnidado.querySelector(sel);
+                                                    if (elem) {
+                                                        selectEncontrado = elem;
+                                                        break;
+                                                    }
+                                                }
+                                            } catch(e) {}
+                                            if (selectEncontrado) break;
+                                        }
+                                    }
+                                } catch(e) {}
+                                if (selectEncontrado) break;
+                            }
+                        }
+
+                        if (!selectEncontrado) {
+                            return {success: false, error: 'Select modalidad no encontrado'};
+                        }
+
+                        // Seleccionar la opción que contenga el valor buscado
+                        var opciones = selectEncontrado.options;
+                        var opcionSeleccionada = null;
+                        var valorInterno = null;
+
+                        for (var i = 0; i < opciones.length; i++) {
+                            var textoOpcion = opciones[i].text.trim().toUpperCase();
+                            var valorBuscadoUpper = valorBuscado.toUpperCase();
+
+                            if (textoOpcion.includes(valorBuscadoUpper) || valorBuscadoUpper.includes(textoOpcion)) {
+                                selectEncontrado.selectedIndex = i;
+                                opcionSeleccionada = opciones[i].text;
+                                valorInterno = opciones[i].value;
+                                break;
+                            }
+                        }
+
+                        if (!opcionSeleccionada) {
+                            return {success: false, error: 'Opción no encontrada', opciones: Array.from(opciones).map(o => o.text)};
+                        }
+
+                        // Disparar TODOS los eventos posibles
+                        selectEncontrado.focus();
+                        selectEncontrado.dispatchEvent(new Event('focus', {bubbles: true}));
+                        selectEncontrado.dispatchEvent(new Event('change', {bubbles: true, cancelable: true}));
+                        selectEncontrado.dispatchEvent(new Event('input', {bubbles: true}));
+                        selectEncontrado.dispatchEvent(new Event('blur', {bubbles: true}));
+
+                        if (typeof selectEncontrado.onchange === 'function') {
+                            selectEncontrado.onchange();
+                        }
+
+                        if (typeof jQuery !== 'undefined') {
+                            jQuery(selectEncontrado).trigger('change');
+                        }
+
+                        return {
+                            success: true,
+                            opcion: opcionSeleccionada,
+                            valorInterno: valorInterno
+                        };
+                    """, valor_escapado)
+
+                    if resultado.get('success'):
+                        self.log(f"  ✅ Campo 'modalidad' rellenado con éxito usando JavaScript")
+                        self.log(f"  ✓ Opción seleccionada: '{resultado.get('opcion')}'")
+                        valor_seleccionado = resultado.get('valorInterno')
+                        self.log(f"  ✓ Valor interno: {valor_seleccionado}")
+
+                        # Esperar procesamiento
+                        time.sleep(2)
+                    else:
+                        self.log(f"  ❌ Error: {resultado.get('error')}")
+                        if 'opciones' in resultado:
+                            self.log(f"  📋 Opciones disponibles:")
+                            for opt in resultado['opciones'][:10]:
+                                self.log(f"     - {opt}")
+                        raise Exception("No se pudo seleccionar Modalidad con JavaScript")
+
+                except Exception as e:
+                    self.log(f"  ❌ Falló MODO NUCLEAR: {str(e)[:100]}")
                     raise Exception("No se pudo seleccionar Modalidad")
+
+                # 🔥 CRÍTICO: Esperar a que los campos dinámicos se carguen
+                self.log("  ⏳ Esperando carga de campos dinámicos...")
+                time.sleep(3)  # Espera para AJAX
             
             # 6. Sub Modalidad (Columna D) - OPCIONAL
             if 'Submodalidad' in datos and pd.notna(datos['Submodalidad']):
