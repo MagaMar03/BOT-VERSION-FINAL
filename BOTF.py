@@ -2412,17 +2412,45 @@ class BotDenunciasSUNAT:
 
                         // Seleccionar la mejor coincidencia encontrada
                         if (mejorCoincidencia.indice !== -1) {{
+                            // PASO 1: Dar foco al elemento (importante para formularios antiguos)
+                            try {{
+                                elemento.focus();
+                            }} catch(e) {{}}
+
+                            // PASO 2: Seleccionar el valor
                             elemento.selectedIndex = mejorCoincidencia.indice;
                             elemento.value = opciones[mejorCoincidencia.indice].value;
 
-                            // Disparar eventos
-                            elemento.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                            elemento.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+                            // PASO 3: Disparar TODOS los eventos necesarios en el orden correcto
+                            // Eventos modernos (addEventListener)
+                            try {{
+                                elemento.dispatchEvent(new Event('input', {{ bubbles: true, cancelable: true }}));
+                                elemento.dispatchEvent(new Event('change', {{ bubbles: true, cancelable: true }}));
+                                elemento.dispatchEvent(new Event('blur', {{ bubbles: true, cancelable: true }}));
+                            }} catch(e) {{}}
 
-                            // Ejecutar onchange si existe
-                            if (elemento.onchange) {{
-                                elemento.onchange();
-                            }}
+                            // PASO 4: Ejecutar handlers antiguos (on* properties)
+                            try {{
+                                if (elemento.oninput) elemento.oninput();
+                            }} catch(e) {{}}
+                            try {{
+                                if (elemento.onchange) elemento.onchange();
+                            }} catch(e) {{}}
+                            try {{
+                                if (elemento.onblur) elemento.onblur();
+                            }} catch(e) {{}}
+
+                            // PASO 5: Intentar fireEvent para IE/navegadores antiguos
+                            try {{
+                                if (elemento.fireEvent) {{
+                                    elemento.fireEvent('onchange');
+                                }}
+                            }} catch(e) {{}}
+
+                            // PASO 6: Marcar el elemento como modificado (flag común en formularios)
+                            try {{
+                                elemento.setAttribute('data-changed', 'true');
+                            }} catch(e) {{}}
 
                             return true;
                         }}
@@ -2483,7 +2511,7 @@ class BotDenunciasSUNAT:
                 # Verificar qué valor se seleccionó (solo para SELECT)
                 if tipo == "select":
                     try:
-                        valor_seleccionado = self.driver.execute_script(f"""
+                        verificacion = self.driver.execute_script(f"""
                             function obtenerValorSeleccionado(ventana, nivel) {{
                                 if (nivel > 10) return null;
                                 try {{
@@ -2491,7 +2519,11 @@ class BotDenunciasSUNAT:
                                     if (elementos.length > 0) {{
                                         var elemento = elementos[0];
                                         var opcionSeleccionada = elemento.options[elemento.selectedIndex];
-                                        return opcionSeleccionada ? opcionSeleccionada.text : null;
+                                        return {{
+                                            texto: opcionSeleccionada ? opcionSeleccionada.text : null,
+                                            valor: elemento.value,
+                                            indice: elemento.selectedIndex
+                                        }};
                                     }}
                                     for (var i = 0; i < ventana.frames.length; i++) {{
                                         var resultado = obtenerValorSeleccionado(ventana.frames[i], nivel + 1);
@@ -2502,10 +2534,17 @@ class BotDenunciasSUNAT:
                             }}
                             return obtenerValorSeleccionado(window.top, 0);
                         """)
-                        if valor_seleccionado:
-                            self.log(f"     → Opción seleccionada: '{valor_seleccionado}'")
-                    except:
-                        pass
+                        if verificacion:
+                            self.log(f"     → Opción seleccionada: '{verificacion['texto']}'")
+                            self.log(f"     → Valor: '{verificacion['valor']}', Índice: {verificacion['indice']}")
+
+                            # Verificar que NO esté en índice 0 (opción vacía/por defecto)
+                            if verificacion['indice'] == 0:
+                                self.log(f"     ⚠️ ADVERTENCIA: Índice 0 puede ser opción vacía")
+                        else:
+                            self.log(f"     ⚠️ No se pudo verificar el valor seleccionado")
+                    except Exception as e:
+                        self.log(f"     ⚠️ Error en verificación: {str(e)[:50]}")
 
                 return True
             else:
