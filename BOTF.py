@@ -2357,29 +2357,79 @@ class BotDenunciasSUNAT:
 
                     // Rellenar según el tipo
                     if ('{tipo}' === 'select') {{
-                        // Para SELECT: buscar la opción que contenga el valor
+                        // Para SELECT: buscar la mejor opción con múltiples estrategias
                         var opciones = elemento.options;
+                        var valorBuscado = '{valor}'.toUpperCase().trim();
+                        var mejorCoincidencia = {{ indice: -1, longitud: 0 }};
+
+                        // Estrategia 1: Coincidencia EXACTA (prioridad máxima)
                         for (var i = 0; i < opciones.length; i++) {{
-                            var textoOpcion = opciones[i].text.toUpperCase();
-                            var valorBuscado = '{valor}'.toUpperCase();
-
-                            if (textoOpcion.indexOf(valorBuscado) !== -1 ||
-                                valorBuscado.indexOf(textoOpcion) !== -1) {{
-                                elemento.selectedIndex = i;
-                                elemento.value = opciones[i].value;
-
-                                // Disparar eventos
-                                elemento.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                elemento.dispatchEvent(new Event('blur', {{ bubbles: true }}));
-
-                                // Ejecutar onchange si existe
-                                if (elemento.onchange) {{
-                                    elemento.onchange();
-                                }}
-
-                                return true;
+                            var textoOpcion = opciones[i].text.toUpperCase().trim();
+                            if (textoOpcion === valorBuscado) {{
+                                mejorCoincidencia = {{ indice: i, longitud: textoOpcion.length }};
+                                break;
                             }}
                         }}
+
+                        // Estrategia 2: La opción COMIENZA con el valor buscado (para texto truncado)
+                        if (mejorCoincidencia.indice === -1) {{
+                            for (var i = 0; i < opciones.length; i++) {{
+                                var textoOpcion = opciones[i].text.toUpperCase().trim();
+                                if (textoOpcion.indexOf(valorBuscado) === 0) {{
+                                    // Seleccionar la opción MÁS LARGA que coincida
+                                    if (textoOpcion.length > mejorCoincidencia.longitud) {{
+                                        mejorCoincidencia = {{ indice: i, longitud: textoOpcion.length }};
+                                    }}
+                                }}
+                            }}
+                        }}
+
+                        // Estrategia 3: El valor buscado COMIENZA con la opción (coincidencia parcial)
+                        if (mejorCoincidencia.indice === -1) {{
+                            for (var i = 0; i < opciones.length; i++) {{
+                                var textoOpcion = opciones[i].text.toUpperCase().trim();
+                                if (valorBuscado.indexOf(textoOpcion) === 0) {{
+                                    // Seleccionar la opción MÁS LARGA que coincida
+                                    if (textoOpcion.length > mejorCoincidencia.longitud) {{
+                                        mejorCoincidencia = {{ indice: i, longitud: textoOpcion.length }};
+                                    }}
+                                }}
+                            }}
+                        }}
+
+                        // Estrategia 4: Contiene el valor (último recurso)
+                        if (mejorCoincidencia.indice === -1) {{
+                            for (var i = 0; i < opciones.length; i++) {{
+                                var textoOpcion = opciones[i].text.toUpperCase().trim();
+                                if (textoOpcion.indexOf(valorBuscado) !== -1) {{
+                                    // Seleccionar la opción MÁS LARGA que coincida
+                                    if (textoOpcion.length > mejorCoincidencia.longitud) {{
+                                        mejorCoincidencia = {{ indice: i, longitud: textoOpcion.length }};
+                                    }}
+                                }}
+                            }}
+                        }}
+
+                        // Seleccionar la mejor coincidencia encontrada
+                        if (mejorCoincidencia.indice !== -1) {{
+                            elemento.selectedIndex = mejorCoincidencia.indice;
+                            elemento.value = opciones[mejorCoincidencia.indice].value;
+
+                            // Disparar eventos
+                            elemento.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            elemento.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+
+                            // Ejecutar onchange si existe
+                            if (elemento.onchange) {{
+                                elemento.onchange();
+                            }}
+
+                            return true;
+                        }}
+
+                        // No se encontró ninguna coincidencia
+                        return false;
+                    }}
                     }} else if ('{tipo}' === 'textarea' || '{tipo}' === 'input') {{
                         elemento.value = '{valor}';
                         elemento.dispatchEvent(new Event('input', {{ bubbles: true }}));
@@ -2429,9 +2479,72 @@ class BotDenunciasSUNAT:
 
             if resultado:
                 self.log(f"  ✅ Campo '{nombre_campo}' rellenado con éxito usando JavaScript")
+
+                # Verificar qué valor se seleccionó (solo para SELECT)
+                if tipo == "select":
+                    try:
+                        valor_seleccionado = self.driver.execute_script(f"""
+                            function obtenerValorSeleccionado(ventana, nivel) {{
+                                if (nivel > 10) return null;
+                                try {{
+                                    var elementos = ventana.document.getElementsByName('{nombre_campo}');
+                                    if (elementos.length > 0) {{
+                                        var elemento = elementos[0];
+                                        var opcionSeleccionada = elemento.options[elemento.selectedIndex];
+                                        return opcionSeleccionada ? opcionSeleccionada.text : null;
+                                    }}
+                                    for (var i = 0; i < ventana.frames.length; i++) {{
+                                        var resultado = obtenerValorSeleccionado(ventana.frames[i], nivel + 1);
+                                        if (resultado) return resultado;
+                                    }}
+                                }} catch(e) {{}}
+                                return null;
+                            }}
+                            return obtenerValorSeleccionado(window.top, 0);
+                        """)
+                        if valor_seleccionado:
+                            self.log(f"     → Opción seleccionada: '{valor_seleccionado}'")
+                    except:
+                        pass
+
                 return True
             else:
                 self.log(f"  ⚠️ No se encontró el campo '{nombre_campo}' en ningún frame")
+
+                # Debug: Listar todas las opciones disponibles (solo para SELECT)
+                if tipo == "select":
+                    try:
+                        opciones = self.driver.execute_script(f"""
+                            function obtenerOpciones(ventana, nivel) {{
+                                if (nivel > 10) return null;
+                                try {{
+                                    var elementos = ventana.document.getElementsByName('{nombre_campo}');
+                                    if (elementos.length > 0) {{
+                                        var elemento = elementos[0];
+                                        var lista = [];
+                                        for (var i = 0; i < elemento.options.length; i++) {{
+                                            lista.push(elemento.options[i].text);
+                                        }}
+                                        return lista;
+                                    }}
+                                    for (var i = 0; i < ventana.frames.length; i++) {{
+                                        var resultado = obtenerOpciones(ventana.frames[i], nivel + 1);
+                                        if (resultado) return resultado;
+                                    }}
+                                }} catch(e) {{}}
+                                return null;
+                            }}
+                            return obtenerOpciones(window.top, 0);
+                        """)
+                        if opciones and len(opciones) > 0:
+                            self.log(f"     → Campo encontrado con {len(opciones)} opciones:")
+                            for i, opcion in enumerate(opciones[:10]):  # Mostrar solo las primeras 10
+                                self.log(f"        {i+1}. {opcion[:80]}")
+                            if len(opciones) > 10:
+                                self.log(f"        ... y {len(opciones)-10} más")
+                    except:
+                        pass
+
                 return False
 
         except Exception as e:
@@ -2455,7 +2568,8 @@ class BotDenunciasSUNAT:
             if 'Modalidad de evasion' in datos and pd.notna(datos['Modalidad de evasion']):
                 valor = str(datos['Modalidad de evasion']).strip()
                 self.log(f"\n📋 CAMPO 1: Modalidad Evasión")
-                self.buscar_y_rellenar_con_javascript("modalidad", valor, "select")
+                if not self.buscar_y_rellenar_con_javascript("modalidad", valor, "select"):
+                    raise Exception(f"No se pudo seleccionar la Modalidad: '{valor}'")
                 time.sleep(2)
 
             # 2. Tipo de Denuncia (Radio button)
