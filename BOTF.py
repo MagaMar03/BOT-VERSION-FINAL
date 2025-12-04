@@ -2613,6 +2613,37 @@ class BotDenunciasSUNAT:
         try:
             self.log("📝 Llenando Sección 2: ATENCIÓN DE DENUNCIAS...")
 
+            # 🔥 CRÍTICO: RE-ENTRAR AL IFRAME CORRECTO
+            # Después del clic en "Siguiente" de Sección 1, el contenido del frame cambió
+            # pero Selenium perdió el contexto. Necesitamos volver a entrar.
+            self.log("  🔄 Re-entrando al iframe para Sección 2...")
+
+            try:
+                # Volver al contexto principal
+                self.driver.switch_to.default_content()
+
+                # Entrar al iframe principal
+                iframe_app = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "iframeApplication"))
+                )
+                self.driver.switch_to.frame(iframe_app)
+                self.log("  ✓ Cambiado a iframe 'iframeApplication'")
+                time.sleep(0.5)
+
+                # Entrar al frame 'det'
+                frame_det = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.NAME, "det"))
+                )
+                self.driver.switch_to.frame(frame_det)
+                self.log("  ✓ Cambiado a frame 'det'")
+                time.sleep(0.5)
+
+                self.log("  ✅ Contexto de iframe restaurado correctamente")
+
+            except Exception as e:
+                self.log(f"  ⚠️ Error al cambiar contexto: {str(e)[:100]}")
+                self.log("  → Intentando continuar de todas formas...")
+
             # PASO CRÍTICO: Verificar que la nueva sección cargó completamente
             self.log("  → Verificando que la página cargó correctamente...")
 
@@ -2885,6 +2916,36 @@ class BotDenunciasSUNAT:
     def llenar_seccion3_identificacion_denunciante(self, datos):
         try:
             self.log("📝 Llenando Sección 3: IDENTIFICACIÓN DEL DENUNCIANTE...")
+
+            # 🔥 CRÍTICO: RE-ENTRAR AL IFRAME CORRECTO
+            # Igual que en Sección 2, después del clic en "Siguiente" perdemos el contexto
+            self.log("  🔄 Re-entrando al iframe para Sección 3...")
+
+            try:
+                # Volver al contexto principal
+                self.driver.switch_to.default_content()
+
+                # Entrar al iframe principal
+                iframe_app = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "iframeApplication"))
+                )
+                self.driver.switch_to.frame(iframe_app)
+                self.log("  ✓ Cambiado a iframe 'iframeApplication'")
+                time.sleep(0.5)
+
+                # Entrar al frame 'det'
+                frame_det = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.NAME, "det"))
+                )
+                self.driver.switch_to.frame(frame_det)
+                self.log("  ✓ Cambiado a frame 'det'")
+                time.sleep(0.5)
+
+                self.log("  ✅ Contexto de iframe restaurado correctamente")
+
+            except Exception as e:
+                self.log(f"  ⚠️ Error al cambiar contexto: {str(e)[:100]}")
+                self.log("  → Intentando continuar de todas formas...")
 
             # VERIFICACIÓN DE CARGA: Similar a Sección 2
             self.log("  → Verificando que la página cargó correctamente...")
