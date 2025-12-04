@@ -2600,134 +2600,213 @@ class BotDenunciasSUNAT:
 
             # ═══════════════════════════════════════════════════════════════
             # MODO NUCLEAR: Rellenar TODO con JavaScript directo
+            # ACCESO POR ÍNDICE DE COLUMNA (no por nombre de encabezado)
             # ═══════════════════════════════════════════════════════════════
 
-            # 1. Modalidad Evasión
-            if 'Modalidad de evasion' in datos and pd.notna(datos['Modalidad de evasion']):
-                valor = str(datos['Modalidad de evasion']).strip()
-                self.log(f"\n📋 CAMPO 1: Modalidad Evasión")
-                if not self.buscar_y_rellenar_con_javascript("modalidad", valor, "select"):
-                    raise Exception(f"No se pudo seleccionar la Modalidad: '{valor}'")
-                time.sleep(2)
+            # 1. Modalidad Evasión (Columna C = índice 2)
+            if len(datos) > 2 and pd.notna(datos.iloc[2]):
+                valor = str(datos.iloc[2]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 1: Modalidad Evasión = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("modalidad", valor, "select"):
+                        raise Exception(f"No se pudo seleccionar la Modalidad: '{valor}'")
+                    time.sleep(2)
 
-            # 2. Tipo de Denuncia (Radio button)
-            if 'Tipo de denuncia' in datos and pd.notna(datos['Tipo de denuncia']):
-                valor_tipo = str(datos['Tipo de denuncia']).strip()
-                self.log(f"\n📋 CAMPO 2: Tipo de Denuncia")
+            # 2. Sub Modalidad (Columna D = índice 3) - OPCIONAL
+            if len(datos) > 3 and pd.notna(datos.iloc[3]):
+                valor_sub = str(datos.iloc[3]).strip()
+                if valor_sub != "" and valor_sub != "-":
+                    self.log(f"\n📋 CAMPO 2: Sub Modalidad = '{valor_sub}'")
+                    # Intentar llenar, pero no fallar si no existe
+                    self.buscar_y_rellenar_con_javascript("submodalidad", valor_sub, "select")
+                    time.sleep(1)
 
-                mapeo_tipo = {
-                    "telefónica": "1", "telefonica": "1",
-                    "verbal": "2",
-                    "escrita": "3",
-                    "formato electrónico": "4", "formato electronico": "4", "electronico": "4"
-                }
-                valor_radio = mapeo_tipo.get(valor_tipo.lower(), "4")
+            # 3. Tipo de Denuncia (Columna E = índice 4 - Radio button)
+            if len(datos) > 4 and pd.notna(datos.iloc[4]):
+                valor_tipo = str(datos.iloc[4]).strip()
+                if valor_tipo != "" and valor_tipo != "-":
+                    self.log(f"\n📋 CAMPO 3: Tipo de Denuncia = '{valor_tipo}'")
 
-                # Usar JavaScript para hacer clic en el radio button
-                js_radio = f"""
-                var radios = window.top.document.querySelectorAll("input[name='rdoTipo'][value='{valor_radio}']");
-                function buscarEnFrames(win) {{
-                    try {{
-                        var radios = win.document.querySelectorAll("input[name='rdoTipo'][value='{valor_radio}']");
-                        if (radios.length > 0) {{
+                    mapeo_tipo = {
+                        "telefónica": "1", "telefonica": "1",
+                        "verbal": "2",
+                        "escrita": "3",
+                        "formato electrónico": "4", "formato electronico": "4", "electronico": "4"
+                    }
+                    valor_radio = mapeo_tipo.get(valor_tipo.lower(), "3")
+
+                    js_radio = f"""
+                    function buscarEnFrames(win) {{
+                        try {{
+                            var radios = win.document.querySelectorAll("input[name='rdoTipo'][value='{valor_radio}']");
+                            if (radios.length > 0) {{
+                                radios[0].checked = true;
+                                if (radios[0].onclick) radios[0].onclick();
+                                return true;
+                            }}
+                            for (var i = 0; i < win.frames.length; i++) {{
+                                if (buscarEnFrames(win.frames[i])) return true;
+                            }}
+                        }} catch(e) {{}}
+                        return false;
+                    }}
+                    return buscarEnFrames(window.top);
+                    """
+
+                    try:
+                        resultado = self.driver.execute_script(js_radio)
+                        if resultado:
+                            self.log(f"  ✅ Radio button seleccionado")
+                        else:
+                            self.log(f"  ⚠️ No se pudo seleccionar")
+                    except Exception as e:
+                        self.log(f"  ⚠️ Error: {str(e)[:80]}")
+
+                    time.sleep(1)
+
+            # 4. Fecha SID (Columna F = índice 5 - OBLIGATORIO)
+            if len(datos) > 5 and pd.notna(datos.iloc[5]):
+                valor_raw = datos.iloc[5]
+                if str(valor_raw).strip() != "" and str(valor_raw).strip() != "-":
+                    fecha_formateada = self.convertir_fecha_excel(valor_raw)
+                    if fecha_formateada:
+                        self.log(f"\n📋 CAMPO 4: Fecha SID = '{fecha_formateada}'")
+                        if not self.buscar_y_rellenar_con_javascript("fecha_sid", fecha_formateada, "input"):
+                            self.log(f"  ⚠️ No se pudo llenar Fecha SID")
+                        time.sleep(1)
+
+            # 5. Detalle de la Denuncia (Columna G = índice 6 - TEXTAREA)
+            if len(datos) > 6 and pd.notna(datos.iloc[6]):
+                valor_detalle = str(datos.iloc[6]).strip()
+                if valor_detalle != "" and valor_detalle != "-":
+                    self.log(f"\n📋 CAMPO 5: Detalle de la Denuncia")
+                    self.log(f"  → Texto: {valor_detalle[:100]}...")
+                    self.buscar_y_rellenar_con_javascript("detalle", valor_detalle, "textarea")
+                    time.sleep(1)
+
+            # 6-7. Del Mes/Año (Columna H = índice 7 - extraer mes y año)
+            if len(datos) > 7 and pd.notna(datos.iloc[7]):
+                valor_raw = str(datos.iloc[7]).strip()
+                if valor_raw != "" and valor_raw != "-":
+                    fecha_desde = self.extraer_mes_anio(datos.iloc[7])
+                    if fecha_desde:
+                        self.log(f"\n📋 CAMPO 6-7: Del Mes/Año = {fecha_desde['mes']}/{fecha_desde['anio']}")
+                        self.buscar_y_rellenar_con_javascript("MesDesde", fecha_desde['mes'], "select")
+                        time.sleep(0.5)
+                        self.buscar_y_rellenar_con_javascript("AnioDesde", str(fecha_desde['anio']), "select")
+                        time.sleep(0.5)
+
+            # 8-9. Al Mes/Año (Columna I = índice 8 - extraer mes y año)
+            if len(datos) > 8 and pd.notna(datos.iloc[8]):
+                valor_raw = str(datos.iloc[8]).strip()
+                if valor_raw != "" and valor_raw != "-":
+                    fecha_hasta = self.extraer_mes_anio(datos.iloc[8])
+                    if fecha_hasta:
+                        self.log(f"\n📋 CAMPO 8-9: Al Mes/Año = {fecha_hasta['mes']}/{fecha_hasta['anio']}")
+                        self.buscar_y_rellenar_con_javascript("MesHasta", fecha_hasta['mes'], "select")
+                        time.sleep(0.5)
+                        self.buscar_y_rellenar_con_javascript("AnioHasta", str(fecha_hasta['anio']), "select")
+                        time.sleep(0.5)
+
+            # 10. Pruebas Ofrecidas (Columna J = índice 9 - SI/NO con lógica condicional)
+            if len(datos) > 9 and pd.notna(datos.iloc[9]):
+                valor_prueba = str(datos.iloc[9]).strip().upper()
+                self.log(f"\n📋 CAMPO 10: Pruebas Ofrecidas = '{valor_prueba}'")
+
+                if valor_prueba in ["NO", "N"]:
+                    # Marcar NO
+                    js_pruebas_no = """
+                    function buscarEnFrames(win) {
+                        try {
+                            var radios = win.document.querySelectorAll("input[name='tipoPru'][value='N']");
+                            if (radios.length > 0) {
+                                radios[0].checked = true;
+                                if (radios[0].onclick) radios[0].onclick();
+                                return true;
+                            }
+                            for (var i = 0; i < win.frames.length; i++) {
+                                if (buscarEnFrames(win.frames[i])) return true;
+                            }
+                        } catch(e) {}
+                        return false;
+                    }
+                    return buscarEnFrames(window.top);
+                    """
+                    try:
+                        self.driver.execute_script(js_pruebas_no)
+                        self.log("  ✅ Pruebas = NO seleccionado")
+                    except:
+                        pass
+
+                elif valor_prueba in ["SI", "SÍ", "S", "YES"]:
+                    # Marcar SI
+                    js_pruebas_si = """
+                    function buscarEnFrames(win) {
+                        try {
+                            var radios = win.document.querySelectorAll("input[name='tipoPru'][value='S']");
+                            if (radios.length > 0) {
+                                radios[0].checked = true;
+                                if (radios[0].onclick) radios[0].onclick();
+                                return true;
+                            }
+                            for (var i = 0; i < win.frames.length; i++) {
+                                if (buscarEnFrames(win.frames[i])) return true;
+                            }
+                        } catch(e) {}
+                        return false;
+                    }
+                    return buscarEnFrames(window.top);
+                    """
+                    try:
+                        self.driver.execute_script(js_pruebas_si)
+                        self.log("  ✅ Pruebas = SI seleccionado")
+                        time.sleep(1)
+                    except:
+                        pass
+
+                    # 11. Tipo de Prueba (Columna K = índice 10) - Solo si es SI
+                    if len(datos) > 10 and pd.notna(datos.iloc[10]):
+                        valor_tipo_prueba = str(datos.iloc[10]).strip()
+                        if valor_tipo_prueba != "" and valor_tipo_prueba != "-":
+                            self.log(f"\n📋 CAMPO 11: Tipo de Prueba = '{valor_tipo_prueba}'")
+                            if self.buscar_y_rellenar_con_javascript("elementos", valor_tipo_prueba, "select"):
+                                time.sleep(1)
+
+                                # 12. Detalle Otros (Columna L = índice 11) - Solo si K es "Otros, detalle"
+                                if "otros" in valor_tipo_prueba.lower() and "detalle" in valor_tipo_prueba.lower():
+                                    if len(datos) > 11 and pd.notna(datos.iloc[11]):
+                                        valor_detalle_otros = str(datos.iloc[11]).strip()
+                                        if valor_detalle_otros != "" and valor_detalle_otros != "-":
+                                            self.log(f"\n📋 CAMPO 12: Detalle Otros = '{valor_detalle_otros[:50]}...'")
+                                            self.buscar_y_rellenar_con_javascript("otros", valor_detalle_otros, "input")
+                                            time.sleep(1)
+                            else:
+                                self.log(f"  ⚠️ No se pudo seleccionar Tipo de Prueba")
+            else:
+                # Si no hay valor en columna J, marcar NO por defecto
+                self.log(f"\n📋 CAMPO 10: Pruebas Ofrecidas = NO (por defecto)")
+                js_pruebas_no = """
+                function buscarEnFrames(win) {
+                    try {
+                        var radios = win.document.querySelectorAll("input[name='tipoPru'][value='N']");
+                        if (radios.length > 0) {
                             radios[0].checked = true;
                             if (radios[0].onclick) radios[0].onclick();
                             return true;
-                        }}
-                        for (var i = 0; i < win.frames.length; i++) {{
+                        }
+                        for (var i = 0; i < win.frames.length; i++) {
                             if (buscarEnFrames(win.frames[i])) return true;
-                        }}
-                    }} catch(e) {{}}
+                        }
+                    } catch(e) {}
                     return false;
-                }}
+                }
                 return buscarEnFrames(window.top);
                 """
-
                 try:
-                    resultado = self.driver.execute_script(js_radio)
-                    if resultado:
-                        self.log(f"  ✅ Radio button '{valor_tipo}' seleccionado")
-                    else:
-                        self.log(f"  ⚠️ No se pudo seleccionar radio button")
-                except Exception as e:
-                    self.log(f"  ⚠️ Error: {str(e)[:80]}")
-
-                time.sleep(1)
-
-            # 3. Fecha SID (CAMPO OBLIGATORIO)
-            if 'Fecha SID' in datos and pd.notna(datos['Fecha SID']):
-                valor_raw = datos['Fecha SID']
-
-                if str(valor_raw).strip() != "":
-                    # Convertir fecha de Excel a formato dd/mm/yyyy
-                    fecha_formateada = self.convertir_fecha_excel(valor_raw)
-
-                    if fecha_formateada:
-                        self.log(f"\n📋 CAMPO 3: Fecha SID")
-                        if not self.buscar_y_rellenar_con_javascript("fecha_sid", fecha_formateada, "input"):
-                            self.log(f"  ⚠️ No se pudo llenar Fecha SID (OBLIGATORIA)")
-                        time.sleep(1)
-
-            # 4. Detalle de la Denuncia (TEXTAREA)
-            if 'Descripcion de los hechos' in datos and pd.notna(datos['Descripcion de los hechos']):
-                valor_detalle = str(datos['Descripcion de los hechos']).strip()
-                self.log(f"\n📋 CAMPO 4: Detalle de la Denuncia")
-                self.buscar_y_rellenar_con_javascript("detalle", valor_detalle, "textarea")
-                time.sleep(1)
-
-            # 5. Mes Desde
-            if 'Mes Desde' in datos and pd.notna(datos['Mes Desde']):
-                valor_mes = str(datos['Mes Desde']).strip()
-                self.log(f"\n📋 CAMPO 5: Mes Desde")
-                self.buscar_y_rellenar_con_javascript("MesDesde", valor_mes, "select")
-                time.sleep(0.5)
-
-            # 6. Año Desde
-            if 'Anio Desde' in datos and pd.notna(datos['Anio Desde']):
-                valor_anio = str(int(datos['Anio Desde']))
-                self.log(f"\n📋 CAMPO 6: Año Desde")
-                self.buscar_y_rellenar_con_javascript("AnioDesde", valor_anio, "select")
-                time.sleep(0.5)
-
-            # 7. Mes Hasta
-            if 'Mes Hasta' in datos and pd.notna(datos['Mes Hasta']):
-                valor_mes = str(datos['Mes Hasta']).strip()
-                self.log(f"\n📋 CAMPO 7: Mes Hasta")
-                self.buscar_y_rellenar_con_javascript("MesHasta", valor_mes, "select")
-                time.sleep(0.5)
-
-            # 8. Año Hasta
-            if 'Anio Hasta' in datos and pd.notna(datos['Anio Hasta']):
-                valor_anio = str(int(datos['Anio Hasta']))
-                self.log(f"\n📋 CAMPO 8: Año Hasta")
-                self.buscar_y_rellenar_con_javascript("AnioHasta", valor_anio, "select")
-                time.sleep(0.5)
-
-            # 9. Pruebas Ofrecidas (Radio button - NO por defecto)
-            self.log(f"\n📋 CAMPO 9: Pruebas Ofrecidas = NO")
-            js_pruebas = """
-            function buscarEnFrames(win) {
-                try {
-                    var radios = win.document.querySelectorAll("input[name='tipoPru'][value='N']");
-                    if (radios.length > 0) {
-                        radios[0].checked = true;
-                        if (radios[0].onclick) radios[0].onclick();
-                        return true;
-                    }
-                    for (var i = 0; i < win.frames.length; i++) {
-                        if (buscarEnFrames(win.frames[i])) return true;
-                    }
-                } catch(e) {}
-                return false;
-            }
-            return buscarEnFrames(window.top);
-            """
-
-            try:
-                self.driver.execute_script(js_pruebas)
-                self.log("  ✅ Pruebas = NO seleccionado")
-            except:
-                pass
+                    self.driver.execute_script(js_pruebas_no)
+                    self.log("  ✅ Pruebas = NO seleccionado")
+                except:
+                    pass
 
             time.sleep(2)
 
