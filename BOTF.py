@@ -2457,7 +2457,6 @@ class BotDenunciasSUNAT:
 
                         // No se encontró ninguna coincidencia
                         return false;
-                    }}
                     }} else if ('{tipo}' === 'textarea' || '{tipo}' === 'input') {{
                         elemento.value = '{valor}';
                         elemento.dispatchEvent(new Event('input', {{ bubbles: true }}));
