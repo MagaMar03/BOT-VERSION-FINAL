@@ -2654,43 +2654,57 @@ class BotDenunciasSUNAT:
 
                 time.sleep(1)
 
-            # 3. Detalle de la Denuncia (TEXTAREA)
+            # 3. Fecha SID (CAMPO OBLIGATORIO)
+            if 'Fecha SID' in datos and pd.notna(datos['Fecha SID']):
+                valor_raw = datos['Fecha SID']
+
+                if str(valor_raw).strip() != "":
+                    # Convertir fecha de Excel a formato dd/mm/yyyy
+                    fecha_formateada = self.convertir_fecha_excel(valor_raw)
+
+                    if fecha_formateada:
+                        self.log(f"\n📋 CAMPO 3: Fecha SID")
+                        if not self.buscar_y_rellenar_con_javascript("fecha_sid", fecha_formateada, "input"):
+                            self.log(f"  ⚠️ No se pudo llenar Fecha SID (OBLIGATORIA)")
+                        time.sleep(1)
+
+            # 4. Detalle de la Denuncia (TEXTAREA)
             if 'Descripcion de los hechos' in datos and pd.notna(datos['Descripcion de los hechos']):
                 valor_detalle = str(datos['Descripcion de los hechos']).strip()
-                self.log(f"\n📋 CAMPO 3: Detalle de la Denuncia")
+                self.log(f"\n📋 CAMPO 4: Detalle de la Denuncia")
                 self.buscar_y_rellenar_con_javascript("detalle", valor_detalle, "textarea")
                 time.sleep(1)
 
-            # 4. Mes Desde
+            # 5. Mes Desde
             if 'Mes Desde' in datos and pd.notna(datos['Mes Desde']):
                 valor_mes = str(datos['Mes Desde']).strip()
-                self.log(f"\n📋 CAMPO 4: Mes Desde")
+                self.log(f"\n📋 CAMPO 5: Mes Desde")
                 self.buscar_y_rellenar_con_javascript("MesDesde", valor_mes, "select")
                 time.sleep(0.5)
 
-            # 5. Año Desde
+            # 6. Año Desde
             if 'Anio Desde' in datos and pd.notna(datos['Anio Desde']):
                 valor_anio = str(int(datos['Anio Desde']))
-                self.log(f"\n📋 CAMPO 5: Año Desde")
+                self.log(f"\n📋 CAMPO 6: Año Desde")
                 self.buscar_y_rellenar_con_javascript("AnioDesde", valor_anio, "select")
                 time.sleep(0.5)
 
-            # 6. Mes Hasta
+            # 7. Mes Hasta
             if 'Mes Hasta' in datos and pd.notna(datos['Mes Hasta']):
                 valor_mes = str(datos['Mes Hasta']).strip()
-                self.log(f"\n📋 CAMPO 6: Mes Hasta")
+                self.log(f"\n📋 CAMPO 7: Mes Hasta")
                 self.buscar_y_rellenar_con_javascript("MesHasta", valor_mes, "select")
                 time.sleep(0.5)
 
-            # 7. Año Hasta
+            # 8. Año Hasta
             if 'Anio Hasta' in datos and pd.notna(datos['Anio Hasta']):
                 valor_anio = str(int(datos['Anio Hasta']))
-                self.log(f"\n📋 CAMPO 7: Año Hasta")
+                self.log(f"\n📋 CAMPO 8: Año Hasta")
                 self.buscar_y_rellenar_con_javascript("AnioHasta", valor_anio, "select")
                 time.sleep(0.5)
 
-            # 8. Pruebas Ofrecidas (Radio button - NO por defecto)
-            self.log(f"\n📋 CAMPO 8: Pruebas Ofrecidas = NO")
+            # 9. Pruebas Ofrecidas (Radio button - NO por defecto)
+            self.log(f"\n📋 CAMPO 9: Pruebas Ofrecidas = NO")
             js_pruebas = """
             function buscarEnFrames(win) {
                 try {
