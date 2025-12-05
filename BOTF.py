@@ -3608,89 +3608,78 @@ class BotDenunciasSUNAT:
         """
         self.log("  🔍 Buscando enlace 'Imprimir Constancia'...")
 
-        # ESTRATEGIA RÁPIDA: Búsqueda simple sin recursión profunda
         js_code = """
-        // ESTRATEGIA 1: Ejecutar función printPage directamente en window.top
-        try {
-            if (typeof window.printPage === 'function') {
-                window.printPage(window.parent.mainFrame || window);
-                return true;
-            }
-        } catch(e) {}
+        function buscarImprimirConstancia(ventana, nivel) {
+            if (nivel > 10) return false;
 
-        // ESTRATEGIA 2: Buscar en window.top
-        try {
-            var enlaces = window.document.querySelectorAll('a[onclick*="printPage"]');
-            if (enlaces.length > 0) {
-                enlaces[0].click();
-                return true;
-            }
-        } catch(e) {}
+            try {
+                // ESTRATEGIA 1: Ejecutar función printPage directamente
+                if (typeof ventana.printPage === 'function') {
+                    try {
+                        ventana.printPage(ventana.parent.mainFrame || ventana);
+                        return true;
+                    } catch(e) {}
+                }
 
-        // ESTRATEGIA 3: Buscar por clase lnk10 en window.top
-        try {
-            var enlaces = window.document.querySelectorAll('a.lnk10');
-            for (var i = 0; i < enlaces.length; i++) {
-                var texto = enlaces[i].innerText || enlaces[i].textContent || '';
-                if (texto.indexOf('Imprimir') !== -1) {
-                    enlaces[i].click();
+                // ESTRATEGIA 2: Buscar por onclick que contenga "printPage"
+                var enlaces = ventana.document.querySelectorAll('a[onclick*="printPage"]');
+                if (enlaces.length > 0) {
+                    enlaces[0].click();
                     return true;
                 }
-            }
-        } catch(e) {}
 
-        // ESTRATEGIA 4: Buscar imagen con alt en window.top
-        try {
-            var imagenes = window.document.querySelectorAll('img[alt*="Imprime"]');
-            for (var i = 0; i < imagenes.length; i++) {
-                var enlacePadre = imagenes[i].closest('a');
-                if (enlacePadre) {
-                    enlacePadre.click();
-                    return true;
+                // ESTRATEGIA 3: Buscar por clase "lnk10"
+                enlaces = ventana.document.querySelectorAll('a.lnk10');
+                for (var i = 0; i < enlaces.length; i++) {
+                    var texto = enlaces[i].innerText || enlaces[i].textContent || '';
+                    if (texto.indexOf('Imprimir Constancia') !== -1 || texto.indexOf('Imprime la pagina') !== -1) {
+                        enlaces[i].click();
+                        return true;
+                    }
                 }
-            }
-        } catch(e) {}
 
-        // ESTRATEGIA 5: Buscar en primer nivel de frames (sin recursión profunda)
-        try {
-            for (var i = 0; i < window.frames.length; i++) {
-                try {
-                    var frame = window.frames[i];
-
-                    // Ejecutar printPage en el frame
-                    if (typeof frame.printPage === 'function') {
-                        frame.printPage(frame.parent.mainFrame || frame);
+                // ESTRATEGIA 4: Buscar por texto que contenga "Imprimir Constancia"
+                enlaces = ventana.document.querySelectorAll('a');
+                for (var i = 0; i < enlaces.length; i++) {
+                    var texto = enlaces[i].innerText || enlaces[i].textContent || '';
+                    if (texto.indexOf('Imprimir Constancia') !== -1) {
+                        enlaces[i].click();
                         return true;
                     }
+                }
 
-                    // Buscar enlaces en el frame
-                    var enlaces = frame.document.querySelectorAll('a[onclick*="printPage"]');
-                    if (enlaces.length > 0) {
-                        enlaces[0].click();
+                // ESTRATEGIA 5: Buscar imagen con alt que contenga "Imprime"
+                var imagenes = ventana.document.querySelectorAll('img[alt*="Imprime"]');
+                for (var i = 0; i < imagenes.length; i++) {
+                    var enlacePadre = imagenes[i].closest('a');
+                    if (enlacePadre) {
+                        enlacePadre.click();
                         return true;
                     }
+                }
 
-                    // Buscar por clase lnk10
-                    enlaces = frame.document.querySelectorAll('a.lnk10');
-                    for (var j = 0; j < enlaces.length; j++) {
-                        var texto = enlaces[j].innerText || enlaces[j].textContent || '';
-                        if (texto.indexOf('Imprimir') !== -1) {
-                            enlaces[j].click();
+                // Buscar recursivamente en todos los iframes
+                var frames = ventana.frames;
+                for (var i = 0; i < frames.length; i++) {
+                    try {
+                        if (buscarImprimirConstancia(frames[i], nivel + 1)) {
                             return true;
                         }
+                    } catch (e) {
+                        // Acceso denegado al frame
                     }
-                } catch(e) {
-                    // Frame no accesible, continuar
                 }
-            }
-        } catch(e) {}
 
-        return false;
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        return buscarImprimirConstancia(window.top, 0);
         """
 
         try:
-            # Aumentar timeout a 10 segundos (suficiente sin ser excesivo)
-            self.driver.set_script_timeout(10)
             resultado = self.driver.execute_script(js_code)
 
             if resultado:
