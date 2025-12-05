@@ -2594,6 +2594,120 @@ class BotDenunciasSUNAT:
             self.log(f"  ❌ Error ejecutando JavaScript: {str(e)[:100]}")
             return False
 
+    def clic_boton_con_javascript(self, nombre_boton):
+        """
+        🚨🚨🚨 MODO NUCLEAR PARA BOTONES - USA JAVASCRIPT DIRECTO 🚨🚨🚨
+
+        Hace clic en un botón usando JavaScript puro, buscando recursivamente
+        en TODOS los frames hasta nivel 10.
+
+        Args:
+            nombre_boton: tipo de botón ("siguiente", "grabar")
+
+        Returns:
+            True si se hizo clic exitosamente, False si no
+        """
+        self.log(f"🚨 MODO NUCLEAR BOTÓN: Buscando y haciendo clic en '{nombre_boton}'")
+
+        # Mapeo de nombres de botón a sus características
+        config_botones = {
+            "siguiente": {
+                "onclick": "clickbtn_validar",
+                "value": "Siguiente",
+                "name": "btnsubmit"
+            },
+            "grabar": {
+                "onclick": "clickbtn_validar",
+                "value": "Grabar",
+                "name": "btnsubmit"
+            }
+        }
+
+        config = config_botones.get(nombre_boton.lower(), {
+            "onclick": f"clickbtn_{nombre_boton}",
+            "value": nombre_boton.capitalize(),
+            "name": "btnsubmit"
+        })
+
+        # JavaScript que busca y hace clic recursivamente en TODOS los frames
+        js_code = f"""
+        function buscarYClickBoton(ventana, nivelActual, nivelMaximo) {{
+            if (nivelActual > nivelMaximo) return false;
+
+            try {{
+                // ESTRATEGIA 1: Ejecutar función onclick directamente
+                if (typeof ventana.{config['onclick']} === 'function') {{
+                    ventana.{config['onclick']}();
+                    return true;
+                }}
+
+                // ESTRATEGIA 2: Buscar por onclick attribute
+                var botones = ventana.document.querySelectorAll("input[onclick*='{config['onclick']}']");
+                if (botones.length > 0) {{
+                    botones[0].click();
+                    return true;
+                }}
+
+                // ESTRATEGIA 3: Buscar por name
+                botones = ventana.document.querySelectorAll("input[name='{config['name']}']");
+                if (botones.length > 0) {{
+                    botones[0].click();
+                    return true;
+                }}
+
+                // ESTRATEGIA 4: Buscar por value
+                botones = ventana.document.querySelectorAll("input[value*='{config['value']}']");
+                if (botones.length > 0) {{
+                    botones[0].click();
+                    return true;
+                }}
+
+                // ESTRATEGIA 5: Buscar por type=button
+                botones = ventana.document.querySelectorAll("input[type='button']");
+                for (var i = 0; i < botones.length; i++) {{
+                    var valor = botones[i].value || botones[i].textContent || '';
+                    if (valor.toUpperCase().indexOf('{config['value']}'.toUpperCase()) !== -1) {{
+                        botones[i].click();
+                        return true;
+                    }}
+                }}
+
+                // Buscar recursivamente en todos los frames
+                var frames = ventana.frames;
+                for (var i = 0; i < frames.length; i++) {{
+                    try {{
+                        if (buscarYClickBoton(frames[i], nivelActual + 1, nivelMaximo)) {{
+                            return true;
+                        }}
+                    }} catch (e) {{
+                        // Acceso denegado al frame, continuar
+                    }}
+                }}
+
+                return false;
+            }} catch (e) {{
+                return false;
+            }}
+        }}
+
+        // Iniciar búsqueda desde window.top
+        return buscarYClickBoton(window.top, 0, 10);
+        """
+
+        try:
+            resultado = self.driver.execute_script(js_code)
+
+            if resultado:
+                self.log(f"  ✅ Botón '{nombre_boton}' clickeado con éxito usando JavaScript")
+                return True
+            else:
+                self.log(f"  ⚠️ No se encontró el botón '{nombre_boton}' en ningún frame")
+                return False
+
+        except Exception as e:
+            self.log(f"  ❌ Error ejecutando JavaScript: {str(e)[:100]}")
+            return False
+
     def llenar_seccion2_atencion_denuncias(self, datos):
         try:
             self.log("📝 Llenando Sección 2: ATENCIÓN DE DENUNCIAS...")
@@ -2816,29 +2930,14 @@ class BotDenunciasSUNAT:
             time.sleep(2)
 
             # ═══════════════════════════════════════════════════════════════
-            # RESTABLECER CONTEXTO DEL IFRAME antes de hacer clic
+            # HACER CLIC EN BOTÓN SIGUIENTE - MODO NUCLEAR
             # ═══════════════════════════════════════════════════════════════
-            self.log(f"\n🔄 Restableciendo contexto del iframe...")
-            try:
-                self.driver.switch_to.default_content()
-                self.driver.switch_to.frame("iframeApplication")
-                self.driver.switch_to.frame("det")
-                self.log("  ✅ Contexto restablecido: iframeApplication → det")
-            except Exception as e:
-                self.log(f"  ⚠️ Error restableciendo contexto: {str(e)[:50]}")
+            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN SIGUIENTE (MODO NUCLEAR)...")
 
-            time.sleep(1)
-
-            # ═══════════════════════════════════════════════════════════════
-            # HACER CLIC EN BOTÓN SIGUIENTE - Método Universal
-            # ═══════════════════════════════════════════════════════════════
-            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN SIGUIENTE (Método Universal)...")
-
-            if not self.clic_boton_universal("siguiente"):
-                self.log("  ⚠️ No se pudo hacer clic en botón SIGUIENTE")
-                # Intentar una vez más
+            if not self.clic_boton_con_javascript("siguiente"):
+                self.log("  ⚠️ Intento 1 falló, reintentando...")
                 time.sleep(2)
-                if not self.clic_boton_universal("siguiente"):
+                if not self.clic_boton_con_javascript("siguiente"):
                     raise Exception("No se pudo hacer clic en botón SIGUIENTE después de 2 intentos")
 
             time.sleep(3)
@@ -3247,29 +3346,14 @@ class BotDenunciasSUNAT:
             time.sleep(2)
 
             # ═══════════════════════════════════════════════════════════════
-            # RESTABLECER CONTEXTO DEL IFRAME antes de hacer clic
+            # HACER CLIC EN BOTÓN GRABAR - MODO NUCLEAR
             # ═══════════════════════════════════════════════════════════════
-            self.log(f"\n🔄 Restableciendo contexto del iframe...")
-            try:
-                self.driver.switch_to.default_content()
-                self.driver.switch_to.frame("iframeApplication")
-                self.driver.switch_to.frame("det")
-                self.log("  ✅ Contexto restablecido: iframeApplication → det")
-            except Exception as e:
-                self.log(f"  ⚠️ Error restableciendo contexto: {str(e)[:50]}")
+            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN GRABAR (MODO NUCLEAR)...")
 
-            time.sleep(1)
-
-            # ═══════════════════════════════════════════════════════════════
-            # HACER CLIC EN BOTÓN GRABAR - Método Universal
-            # ═══════════════════════════════════════════════════════════════
-            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN GRABAR (Método Universal)...")
-
-            if not self.clic_boton_universal("grabar"):
-                self.log("  ⚠️ No se pudo hacer clic en botón GRABAR")
-                # Intentar una vez más
+            if not self.clic_boton_con_javascript("grabar"):
+                self.log("  ⚠️ Intento 1 falló, reintentando...")
                 time.sleep(2)
-                if not self.clic_boton_universal("grabar"):
+                if not self.clic_boton_con_javascript("grabar"):
                     raise Exception("No se pudo hacer clic en botón GRABAR después de 2 intentos")
 
             # Esperar respuesta del servidor
