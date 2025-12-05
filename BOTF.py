@@ -2620,6 +2620,16 @@ class BotDenunciasSUNAT:
                 "onclick": "clickbtn_validar",
                 "value": "Grabar",
                 "name": "btnsubmit"
+            },
+            "buscar": {
+                "onclick": "clickbtn_buscar",
+                "value": "Buscar",
+                "name": "buscar"
+            },
+            "aceptar": {
+                "onclick": "clickbtn_ejecutar",
+                "value": "Aceptar",
+                "name": "btnsubmit"
             }
         }
 
@@ -3362,12 +3372,476 @@ class BotDenunciasSUNAT:
             self.log("\n" + "="*70)
             self.log("✅ SECCIÓN 3 COMPLETADA - DENUNCIA GRABADA")
             self.log("="*70)
-            return True
+
+            # Continuar con el procesamiento del resumen y guardado
+            return self.procesar_resumen_y_guardar(datos)
 
         except Exception as e:
             self.log(f"\n❌ ERROR EN SECCIÓN 3: {str(e)}")
             return False
     
+    def procesar_resumen_y_guardar(self, datos):
+        """
+        🚨 PROCESA EL RESUMEN DE LA DENUNCIA Y GUARDA EL ARCHIVO PDF
+
+        Después de presionar "Grabar", esta función:
+        1. Extrae el "Número de Orden" usando MODO NUCLEAR
+        2. Verifica si hay email en la columna Y del Excel
+        3. Si hay email: lo ingresa y presiona "Aceptar"
+        4. Si no hay email: presiona directamente "Imprimir Constancia"
+        5. Presiona el botón "Imprimir"
+        6. Guarda el archivo con el nombre del Número de Orden
+        """
+        try:
+            self.log("\n" + "="*70)
+            self.log("📄 PROCESANDO RESUMEN Y GUARDANDO ARCHIVO")
+            self.log("="*70)
+
+            # ═══════════════════════════════════════════════════════════════
+            # PASO 1: EXTRAER NÚMERO DE ORDEN usando MODO NUCLEAR
+            # ═══════════════════════════════════════════════════════════════
+            self.log("\n🔍 PASO 1: Extrayendo Número de Orden...")
+
+            numero_orden = self.extraer_numero_orden_nuclear()
+
+            if not numero_orden:
+                raise Exception("No se pudo extraer el Número de Orden")
+
+            self.log(f"  ✅ Número de Orden extraído: {numero_orden}")
+
+            # ═══════════════════════════════════════════════════════════════
+            # PASO 2: VERIFICAR SI HAY EMAIL EN COLUMNA Y (índice 24)
+            # ═══════════════════════════════════════════════════════════════
+            self.log("\n📧 PASO 2: Verificando si hay email en columna Y...")
+
+            email = ""
+            try:
+                # Columna Y es el índice 24 (A=0, B=1, ... Y=24)
+                email_raw = datos.iloc[24] if len(datos) > 24 else ""
+                email = str(email_raw).strip() if pd.notna(email_raw) else ""
+
+                if email and email.lower() not in ['', 'nan', 'none']:
+                    self.log(f"  ✅ Email encontrado en columna Y: {email}")
+                else:
+                    email = ""
+                    self.log(f"  ℹ️ Columna Y vacía, se omitirá el email")
+            except Exception as e:
+                self.log(f"  ⚠️ Error leyendo columna Y: {str(e)}")
+                email = ""
+
+            time.sleep(2)
+
+            # ═══════════════════════════════════════════════════════════════
+            # PASO 3: PROCESAR EMAIL O IR DIRECTO A IMPRIMIR
+            # ═══════════════════════════════════════════════════════════════
+            if email:
+                # Si hay email: rellenar y presionar Aceptar
+                self.log("\n📝 PASO 3: Ingresando email y presionando Aceptar...")
+
+                # Rellenar campo de email
+                if not self.rellenar_campo_nuclear("correo", email, "input"):
+                    self.log("  ⚠️ No se pudo rellenar el campo de email, continuando...")
+
+                time.sleep(1)
+
+                # Presionar botón Aceptar
+                if not self.clic_boton_con_javascript("aceptar"):
+                    self.log("  ⚠️ No se pudo hacer clic en Aceptar con JS, intentando método alternativo...")
+                    # Intentar con onclick directamente
+                    try:
+                        self.driver.execute_script("clickbtn_ejecutar();")
+                        self.log("  ✅ Función clickbtn_ejecutar() ejecutada")
+                    except Exception as e:
+                        self.log(f"  ⚠️ Error ejecutando clickbtn_ejecutar(): {str(e)}")
+
+                time.sleep(3)
+
+            # ═══════════════════════════════════════════════════════════════
+            # PASO 4: PRESIONAR "IMPRIMIR CONSTANCIA"
+            # ═══════════════════════════════════════════════════════════════
+            self.log("\n🖨️ PASO 4: Presionando 'Imprimir Constancia'...")
+
+            if not self.clic_imprimir_constancia_nuclear():
+                raise Exception("No se pudo hacer clic en 'Imprimir Constancia'")
+
+            time.sleep(3)
+
+            # ═══════════════════════════════════════════════════════════════
+            # PASO 5: PRESIONAR BOTÓN "IMPRIMIR"
+            # ═══════════════════════════════════════════════════════════════
+            self.log("\n🖨️ PASO 5: Presionando botón 'Imprimir'...")
+
+            if not self.clic_boton_imprimir_chrome():
+                raise Exception("No se pudo hacer clic en el botón Imprimir")
+
+            time.sleep(2)
+
+            # ═══════════════════════════════════════════════════════════════
+            # PASO 6: GUARDAR ARCHIVO PDF
+            # ═══════════════════════════════════════════════════════════════
+            self.log("\n💾 PASO 6: Guardando archivo PDF...")
+
+            ruta_guardado = r"D:\DATA\Karencita\PROGRAMACIÓN\DENUNCIAS\DENUNCIAS MASIVAS"
+            nombre_archivo = f"{numero_orden}.pdf"
+
+            if not self.guardar_pdf_chrome(ruta_guardado, nombre_archivo):
+                raise Exception("No se pudo guardar el archivo PDF")
+
+            self.log(f"\n{'='*70}")
+            self.log(f"✅✅✅ DENUNCIA COMPLETADA Y GUARDADA ✅✅✅")
+            self.log(f"📁 Archivo: {nombre_archivo}")
+            self.log(f"📂 Ruta: {ruta_guardado}")
+            self.log(f"{'='*70}")
+
+            return True
+
+        except Exception as e:
+            self.log(f"\n❌ ERROR EN PROCESAMIENTO DE RESUMEN: {str(e)}")
+            return False
+
+    def extraer_numero_orden_nuclear(self):
+        """
+        🚨 MODO NUCLEAR - Extrae el Número de Orden del resumen
+
+        Busca recursivamente en todos los iframes el texto "Número de Orden:"
+        y extrae el valor que está a su mismo nivel.
+        """
+        self.log("  🔍 Buscando 'Número de Orden' en todos los iframes...")
+
+        js_code = """
+        function buscarNumeroOrden(ventana, nivel) {
+            if (nivel > 10) return null;
+
+            try {
+                // Buscar por texto que contenga "Número de Orden" o "Numero de Orden"
+                var textos = [
+                    "Número de Orden:",
+                    "Numero de Orden:",
+                    "NÚMERO DE ORDEN:",
+                    "NUMERO DE ORDEN:",
+                    "Nº de Orden:",
+                    "N° de Orden:"
+                ];
+
+                // Estrategia 1: Buscar en todo el texto del documento
+                var todoElTexto = ventana.document.body.innerText || ventana.document.body.textContent;
+
+                for (var i = 0; i < textos.length; i++) {
+                    var indice = todoElTexto.indexOf(textos[i]);
+                    if (indice !== -1) {
+                        // Extraer el número que viene después
+                        var despues = todoElTexto.substring(indice + textos[i].length, indice + textos[i].length + 50);
+
+                        // Buscar el primer número (secuencia de dígitos)
+                        var match = despues.match(/([0-9]+)/);
+                        if (match && match[1]) {
+                            return match[1];
+                        }
+                    }
+                }
+
+                // Estrategia 2: Buscar en todos los elementos TD, SPAN, DIV, etc.
+                var elementos = ventana.document.querySelectorAll('td, span, div, p, label');
+                for (var i = 0; i < elementos.length; i++) {
+                    var texto = elementos[i].innerText || elementos[i].textContent || '';
+
+                    for (var j = 0; j < textos.length; j++) {
+                        if (texto.indexOf(textos[j]) !== -1) {
+                            // Buscar en el mismo elemento
+                            var match = texto.match(/([0-9]{10,})/);
+                            if (match && match[1]) {
+                                return match[1];
+                            }
+
+                            // Buscar en el siguiente elemento hermano
+                            var siguiente = elementos[i].nextElementSibling;
+                            if (siguiente) {
+                                var textoSiguiente = siguiente.innerText || siguiente.textContent || '';
+                                var matchSiguiente = textoSiguiente.match(/([0-9]{10,})/);
+                                if (matchSiguiente && matchSiguiente[1]) {
+                                    return matchSiguiente[1];
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Buscar recursivamente en todos los iframes
+                var frames = ventana.frames;
+                for (var i = 0; i < frames.length; i++) {
+                    try {
+                        var resultado = buscarNumeroOrden(frames[i], nivel + 1);
+                        if (resultado) return resultado;
+                    } catch (e) {
+                        // Acceso denegado al frame
+                    }
+                }
+
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        return buscarNumeroOrden(window.top, 0);
+        """
+
+        try:
+            resultado = self.driver.execute_script(js_code)
+
+            if resultado:
+                self.log(f"  ✅ Número de Orden encontrado: {resultado}")
+                return resultado
+            else:
+                self.log(f"  ❌ No se pudo encontrar el Número de Orden")
+                return None
+
+        except Exception as e:
+            self.log(f"  ❌ Error ejecutando JavaScript: {str(e)[:100]}")
+            return None
+
+    def clic_imprimir_constancia_nuclear(self):
+        """
+        🚨 MODO NUCLEAR - Hace clic en el enlace "Imprimir Constancia"
+
+        Selector: <a href="#" class="lnk10" onclick="return printPage(parent.mainFrame, this)">
+        """
+        self.log("  🔍 Buscando enlace 'Imprimir Constancia'...")
+
+        js_code = """
+        function buscarImprimirConstancia(ventana, nivel) {
+            if (nivel > 10) return false;
+
+            try {
+                // ESTRATEGIA 1: Ejecutar función printPage directamente
+                if (typeof ventana.printPage === 'function') {
+                    try {
+                        ventana.printPage(ventana.parent.mainFrame || ventana);
+                        return true;
+                    } catch(e) {}
+                }
+
+                // ESTRATEGIA 2: Buscar por onclick que contenga "printPage"
+                var enlaces = ventana.document.querySelectorAll('a[onclick*="printPage"]');
+                if (enlaces.length > 0) {
+                    enlaces[0].click();
+                    return true;
+                }
+
+                // ESTRATEGIA 3: Buscar por clase "lnk10"
+                enlaces = ventana.document.querySelectorAll('a.lnk10');
+                for (var i = 0; i < enlaces.length; i++) {
+                    var texto = enlaces[i].innerText || enlaces[i].textContent || '';
+                    if (texto.indexOf('Imprimir Constancia') !== -1 || texto.indexOf('Imprime la pagina') !== -1) {
+                        enlaces[i].click();
+                        return true;
+                    }
+                }
+
+                // ESTRATEGIA 4: Buscar por texto que contenga "Imprimir Constancia"
+                enlaces = ventana.document.querySelectorAll('a');
+                for (var i = 0; i < enlaces.length; i++) {
+                    var texto = enlaces[i].innerText || enlaces[i].textContent || '';
+                    if (texto.indexOf('Imprimir Constancia') !== -1) {
+                        enlaces[i].click();
+                        return true;
+                    }
+                }
+
+                // ESTRATEGIA 5: Buscar imagen con alt que contenga "Imprime"
+                var imagenes = ventana.document.querySelectorAll('img[alt*="Imprime"]');
+                for (var i = 0; i < imagenes.length; i++) {
+                    var enlacePadre = imagenes[i].closest('a');
+                    if (enlacePadre) {
+                        enlacePadre.click();
+                        return true;
+                    }
+                }
+
+                // Buscar recursivamente en todos los iframes
+                var frames = ventana.frames;
+                for (var i = 0; i < frames.length; i++) {
+                    try {
+                        if (buscarImprimirConstancia(frames[i], nivel + 1)) {
+                            return true;
+                        }
+                    } catch (e) {
+                        // Acceso denegado al frame
+                    }
+                }
+
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        return buscarImprimirConstancia(window.top, 0);
+        """
+
+        try:
+            resultado = self.driver.execute_script(js_code)
+
+            if resultado:
+                self.log(f"  ✅ Clic en 'Imprimir Constancia' exitoso")
+                return True
+            else:
+                self.log(f"  ❌ No se pudo hacer clic en 'Imprimir Constancia'")
+                return False
+
+        except Exception as e:
+            self.log(f"  ❌ Error: {str(e)[:100]}")
+            return False
+
+    def clic_boton_imprimir_chrome(self):
+        """
+        🚨 MODO NUCLEAR - Hace clic en el botón "Imprimir" de Chrome
+
+        Selector: <cr-button class="action-button" ...>Imprimir</cr-button>
+        """
+        self.log("  🔍 Buscando botón 'Imprimir' de Chrome...")
+
+        js_code = """
+        function buscarBotonImprimir(ventana, nivel) {
+            if (nivel > 10) return false;
+
+            try {
+                // ESTRATEGIA 1: Buscar por tag cr-button
+                var botones = ventana.document.querySelectorAll('cr-button');
+                for (var i = 0; i < botones.length; i++) {
+                    var texto = botones[i].innerText || botones[i].textContent || '';
+                    if (texto.trim() === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                        botones[i].click();
+                        return true;
+                    }
+                }
+
+                // ESTRATEGIA 2: Buscar por clase "action-button"
+                botones = ventana.document.querySelectorAll('.action-button');
+                for (var i = 0; i < botones.length; i++) {
+                    var texto = botones[i].innerText || botones[i].textContent || '';
+                    if (texto.trim() === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                        botones[i].click();
+                        return true;
+                    }
+                }
+
+                // ESTRATEGIA 3: Buscar CUALQUIER botón con texto "Imprimir"
+                botones = ventana.document.querySelectorAll('button');
+                for (var i = 0; i < botones.length; i++) {
+                    var texto = botones[i].innerText || botones[i].textContent || '';
+                    if (texto.trim() === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                        botones[i].click();
+                        return true;
+                    }
+                }
+
+                // ESTRATEGIA 4: Buscar por input type="button"
+                botones = ventana.document.querySelectorAll('input[type="button"]');
+                for (var i = 0; i < botones.length; i++) {
+                    var valor = botones[i].value || '';
+                    if (valor.indexOf('Imprimir') !== -1) {
+                        botones[i].click();
+                        return true;
+                    }
+                }
+
+                // Buscar recursivamente en todos los iframes
+                var frames = ventana.frames;
+                for (var i = 0; i < frames.length; i++) {
+                    try {
+                        if (buscarBotonImprimir(frames[i], nivel + 1)) {
+                            return true;
+                        }
+                    } catch (e) {
+                        // Acceso denegado al frame
+                    }
+                }
+
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        return buscarBotonImprimir(window.top, 0);
+        """
+
+        try:
+            resultado = self.driver.execute_script(js_code)
+
+            if resultado:
+                self.log(f"  ✅ Clic en botón 'Imprimir' exitoso")
+                return True
+            else:
+                self.log(f"  ❌ No se pudo hacer clic en botón 'Imprimir'")
+                return False
+
+        except Exception as e:
+            self.log(f"  ❌ Error: {str(e)[:100]}")
+            return False
+
+    def guardar_pdf_chrome(self, ruta_guardado, nombre_archivo):
+        """
+        🚨 MODO NUCLEAR - Guarda el PDF usando las opciones de Chrome
+
+        Maneja la ventana de guardado de Chrome y guarda el archivo
+        en la ruta especificada con el nombre indicado.
+        """
+        self.log(f"  💾 Guardando como: {nombre_archivo}")
+        self.log(f"  📂 En ruta: {ruta_guardado}")
+
+        try:
+            # Crear la ruta completa
+            ruta_completa = os.path.join(ruta_guardado, nombre_archivo)
+
+            # Asegurar que el directorio existe
+            if not os.path.exists(ruta_guardado):
+                os.makedirs(ruta_guardado)
+                self.log(f"  ✅ Directorio creado: {ruta_guardado}")
+
+            # MÉTODO 1: Usar pyautogui para interactuar con la ventana de guardado
+            try:
+                import pyautogui
+                import pyperclip
+
+                time.sleep(2)
+
+                # Copiar la ruta completa al portapapeles
+                pyperclip.copy(ruta_completa)
+
+                # Presionar Ctrl+S para abrir guardar (por si acaso)
+                pyautogui.hotkey('ctrl', 's')
+                time.sleep(1)
+
+                # Pegar la ruta completa en el campo de nombre
+                pyautogui.hotkey('ctrl', 'v')
+                time.sleep(1)
+
+                # Presionar Enter para guardar
+                pyautogui.press('enter')
+                time.sleep(2)
+
+                # Verificar si el archivo se guardó
+                if os.path.exists(ruta_completa):
+                    self.log(f"  ✅ Archivo guardado exitosamente: {nombre_archivo}")
+                    return True
+                else:
+                    self.log(f"  ⚠️ Archivo no encontrado después de guardar")
+
+            except Exception as e:
+                self.log(f"  ⚠️ Error con pyautogui: {str(e)[:100]}")
+
+            # MÉTODO 2: Configurar Chrome para descargar automáticamente
+            # (esto debería configurarse al iniciar el driver)
+            self.log(f"  ℹ️ Asegúrate de tener configurado Chrome para guardar automáticamente")
+
+            return False
+
+        except Exception as e:
+            self.log(f"  ❌ Error guardando PDF: {str(e)[:100]}")
+            return False
+
     # ============================================
     # FUNCIONES AUXILIARES
     # ============================================
