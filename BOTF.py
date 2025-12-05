@@ -2154,11 +2154,11 @@ class BotDenunciasSUNAT:
                 except Exception as e:
                     self.log(f"   ⚠️ Falló clic JS: {str(e)[:50]}")
 
-            # INTENTO 4: Método universal como último recurso
+            # INTENTO 4: MODO NUCLEAR como último recurso
             if not clic_exitoso:
                 try:
-                    self.log("   → Intento 4: Método universal...")
-                    if self.clic_boton_universal("buscar"):
+                    self.log("   → Intento 4: MODO NUCLEAR...")
+                    if self.clic_boton_con_javascript("buscar"):
                         clic_exitoso = True
                 except:
                     pass
@@ -2260,11 +2260,11 @@ class BotDenunciasSUNAT:
                 except Exception as e:
                     self.log(f"   ⚠️ Falló ejecución onclick: {str(e)[:50]}")
 
-            # INTENTO 3: Método universal
+            # INTENTO 3: MODO NUCLEAR
             if not clic_siguiente_exitoso:
                 try:
-                    self.log("   → Intento 3: Método universal...")
-                    if self.clic_boton_universal("siguiente"):
+                    self.log("   → Intento 3: MODO NUCLEAR...")
+                    if self.clic_boton_con_javascript("siguiente"):
                         clic_siguiente_exitoso = True
                 except:
                     pass
