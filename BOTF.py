@@ -2816,6 +2816,20 @@ class BotDenunciasSUNAT:
             time.sleep(2)
 
             # ═══════════════════════════════════════════════════════════════
+            # RESTABLECER CONTEXTO DEL IFRAME antes de hacer clic
+            # ═══════════════════════════════════════════════════════════════
+            self.log(f"\n🔄 Restableciendo contexto del iframe...")
+            try:
+                self.driver.switch_to.default_content()
+                self.driver.switch_to.frame("iframeApplication")
+                self.driver.switch_to.frame("det")
+                self.log("  ✅ Contexto restablecido: iframeApplication → det")
+            except Exception as e:
+                self.log(f"  ⚠️ Error restableciendo contexto: {str(e)[:50]}")
+
+            time.sleep(1)
+
+            # ═══════════════════════════════════════════════════════════════
             # HACER CLIC EN BOTÓN SIGUIENTE - Método Universal
             # ═══════════════════════════════════════════════════════════════
             self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN SIGUIENTE (Método Universal)...")
@@ -3231,6 +3245,20 @@ class BotDenunciasSUNAT:
                     time.sleep(1)
 
             time.sleep(2)
+
+            # ═══════════════════════════════════════════════════════════════
+            # RESTABLECER CONTEXTO DEL IFRAME antes de hacer clic
+            # ═══════════════════════════════════════════════════════════════
+            self.log(f"\n🔄 Restableciendo contexto del iframe...")
+            try:
+                self.driver.switch_to.default_content()
+                self.driver.switch_to.frame("iframeApplication")
+                self.driver.switch_to.frame("det")
+                self.log("  ✅ Contexto restablecido: iframeApplication → det")
+            except Exception as e:
+                self.log(f"  ⚠️ Error restableciendo contexto: {str(e)[:50]}")
+
+            time.sleep(1)
 
             # ═══════════════════════════════════════════════════════════════
             # HACER CLIC EN BOTÓN GRABAR - Método Universal
