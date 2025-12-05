@@ -3124,151 +3124,208 @@ class BotDenunciasSUNAT:
     
     def llenar_seccion3_identificacion_denunciante(self, datos):
         try:
-            self.log("📝 Llenando Sección 3: IDENTIFICACIÓN DEL DENUNCIANTE...")
+            self.log("="*70)
+            self.log("📝 SECCIÓN 3: IDENTIFICACIÓN DEL DENUNCIANTE")
+            self.log("="*70)
+            self.log("🚨🚨🚨 USANDO MODO NUCLEAR - JavaScript directo 🚨🚨🚨")
 
-            # VERIFICACIÓN DE CARGA: Similar a Sección 2
-            self.log("  → Verificando que la página cargó correctamente...")
+            # Esperar 5 segundos para que la página cargue completamente
+            self.log("  ⏳ Esperando 5 segundos para carga completa...")
+            time.sleep(5)
 
-            # Espera adicional para asegurar que la página está lista
+            # ═══════════════════════════════════════════════════════════════
+            # SECCIÓN IV: IDENTIFICACIÓN DE LA PERSONA DENUNCIANTE
+            # ═══════════════════════════════════════════════════════════════
+
+            # 1. Tipo Denunciante (Columna M = índice 12)
+            if len(datos) > 12 and pd.notna(datos.iloc[12]):
+                valor = str(datos.iloc[12]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 1: Tipo Denunciante = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("tipodoc", valor, "select"):
+                        self.log(f"  ⚠️ No se pudo seleccionar Tipo Denunciante")
+                    time.sleep(1)
+
+            # 2. Número/Nombre (Columna N = índice 13)
+            if len(datos) > 13 and pd.notna(datos.iloc[13]):
+                valor_raw = datos.iloc[13]
+                # Convertir a string, manejando números
+                valor = str(int(valor_raw)) if isinstance(valor_raw, float) else str(valor_raw)
+                valor = valor.strip()
+
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 2: Número/Nombre = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("numdoc", valor, "input"):
+                        self.log(f"  ⚠️ No se pudo llenar Número/Nombre")
+                    time.sleep(1)
+
+            # ═══════════════════════════════════════════════════════════════
+            # SECCIÓN V: DATOS PARA CONTACTARNOS CON USTED
+            # ═══════════════════════════════════════════════════════════════
+
+            # 3. Teléfono (Columna O = índice 14)
+            if len(datos) > 14 and pd.notna(datos.iloc[14]):
+                valor_raw = datos.iloc[14]
+                valor = str(int(valor_raw)) if isinstance(valor_raw, float) else str(valor_raw)
+                valor = valor.strip()
+
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 3: Teléfono = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("telefono", valor, "input"):
+                        self.log(f"  ⚠️ No se pudo llenar Teléfono")
+                    time.sleep(1)
+
+            # 4. Correo Electrónico (Columna P = índice 15)
+            if len(datos) > 15 and pd.notna(datos.iloc[15]):
+                valor = str(datos.iloc[15]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 4: Correo Electrónico = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("correo", valor, "input"):
+                        self.log(f"  ⚠️ No se pudo llenar Correo")
+                    time.sleep(1)
+
+            # 5. Departamento (Columna Q = índice 16)
+            if len(datos) > 16 and pd.notna(datos.iloc[16]):
+                valor = str(datos.iloc[16]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 5: Departamento = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("dpto", valor, "select"):
+                        self.log(f"  ⚠️ No se pudo seleccionar Departamento")
+                    # Espera EXTRA para que cargue Provincia dinámicamente
+                    self.log("  ⏳ Esperando carga de Provincia...")
+                    time.sleep(2)
+
+            # 6. Provincia (Columna R = índice 17)
+            if len(datos) > 17 and pd.notna(datos.iloc[17]):
+                valor = str(datos.iloc[17]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 6: Provincia = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("prov", valor, "select"):
+                        self.log(f"  ⚠️ No se pudo seleccionar Provincia")
+                    # Espera EXTRA para que cargue Distrito dinámicamente
+                    self.log("  ⏳ Esperando carga de Distrito...")
+                    time.sleep(2)
+
+            # 7. Distrito (Columna S = índice 18)
+            if len(datos) > 18 and pd.notna(datos.iloc[18]):
+                valor = str(datos.iloc[18]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 7: Distrito = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("dist", valor, "select"):
+                        self.log(f"  ⚠️ No se pudo seleccionar Distrito")
+                    time.sleep(1)
+
+            # 8. Vía (Columna T = índice 19)
+            if len(datos) > 19 and pd.notna(datos.iloc[19]):
+                valor = str(datos.iloc[19]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 8: Vía = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("tipvia", valor, "select"):
+                        self.log(f"  ⚠️ No se pudo seleccionar Vía")
+                    time.sleep(1)
+
+            # 9. Nombre de Vía - Cuadro limpio (Columna U = índice 20)
+            if len(datos) > 20 and pd.notna(datos.iloc[20]):
+                valor = str(datos.iloc[20]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 9: Nombre de Vía = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("nomvia", valor, "input"):
+                        self.log(f"  ⚠️ No se pudo llenar Nombre de Vía")
+                    time.sleep(1)
+
+            # 10. N°/Mzn./Km. (Columna V = índice 21)
+            if len(datos) > 21 and pd.notna(datos.iloc[21]):
+                valor = str(datos.iloc[21]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 10: N°/Mzn./Km. = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("nro", valor, "input"):
+                        self.log(f"  ⚠️ No se pudo llenar N°/Mzn./Km.")
+                    time.sleep(1)
+
+            # 11. Dpto/Int/Lote/Stand (Columna W = índice 22)
+            if len(datos) > 22 and pd.notna(datos.iloc[22]):
+                valor = str(datos.iloc[22]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 11: Dpto/Int/Lote/Stand = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("interior", valor, "input"):
+                        self.log(f"  ⚠️ No se pudo llenar Dpto/Int/Lote/Stand")
+                    time.sleep(1)
+
+            # 12. Zona (Columna X = índice 23)
+            if len(datos) > 23 and pd.notna(datos.iloc[23]):
+                valor = str(datos.iloc[23]).strip()
+                if valor != "" and valor != "-":
+                    self.log(f"\n📋 CAMPO 12: Zona = '{valor}'")
+                    if not self.buscar_y_rellenar_con_javascript("tipzona", valor, "select"):
+                        self.log(f"  ⚠️ No se pudo seleccionar Zona")
+                    time.sleep(1)
+
             time.sleep(2)
 
-            # 18. Tipo Denunciante (Columna M - segunda columna TIPO)
-            columnas_tipo = [col for col in datos.index if 'TIPO' in str(col).upper()]
+            # ═══════════════════════════════════════════════════════════════
+            # HACER CLIC EN BOTÓN GRABAR con JavaScript
+            # ═══════════════════════════════════════════════════════════════
+            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN GRABAR (JavaScript)...")
 
-            if len(columnas_tipo) >= 2:
-                valor = str(datos[columnas_tipo[1]]).strip()
-            elif 'TIPO' in datos:
-                valor = str(datos['TIPO']).strip()
-            else:
-                valor = None
+            js_grabar = """
+            function buscarYClickGrabar(win) {
+                try {
+                    // Método 1: Por función onclick
+                    var botones = win.document.querySelectorAll("input[onclick*='clickbtn_validar']");
+                    if (botones.length > 0) {
+                        botones[0].click();
+                        return true;
+                    }
 
-            if valor:
-                self.log(f"  → Tipo Denunciante: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("tipodoc", valor, "select", timeout=20):
-                    self.log(f"    ⚠️ No se pudo seleccionar Tipo Denunciante")
-                time.sleep(0.5)
+                    // Método 2: Por name='btnsubmit'
+                    botones = win.document.querySelectorAll("input[name='btnsubmit']");
+                    if (botones.length > 0) {
+                        botones[0].click();
+                        return true;
+                    }
 
-            # 19. Número (Columna N)
-            if 'ruc denunciante' in datos and pd.notna(datos['ruc denunciante']):
-                valor = str(int(datos['ruc denunciante'])) if isinstance(datos['ruc denunciante'], float) else str(datos['ruc denunciante'])
-                self.log(f"  → RUC/DNI: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("numdoc", valor.strip(), "input", timeout=15):
-                    self.log(f"    ⚠️ No se pudo llenar Número")
-                time.sleep(0.5)
+                    // Método 3: Por valor del botón
+                    botones = win.document.querySelectorAll("input[value*='Grabar']");
+                    if (botones.length > 0) {
+                        botones[0].click();
+                        return true;
+                    }
 
-            # 20. Teléfono (Columna O)
-            if 'teléfono' in datos and pd.notna(datos['teléfono']):
-                valor = str(int(datos['teléfono'])) if isinstance(datos['teléfono'], float) else str(datos['teléfono'])
-                self.log(f"  → Teléfono: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("telefono", valor.strip(), "input", timeout=15):
-                    self.log(f"    ⚠️ No se pudo llenar Teléfono")
-                time.sleep(0.5)
+                    // Método 4: Ejecutar función directamente
+                    if (typeof win.clickbtn_validar === 'function') {
+                        win.clickbtn_validar();
+                        return true;
+                    }
 
-            # 21. Correo (Columna P)
-            if 'correo electrónico' in datos and pd.notna(datos['correo electrónico']):
-                valor = str(datos['correo electrónico']).strip()
-                self.log(f"  → Correo: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("correo", valor, "input", timeout=15):
-                    self.log(f"    ⚠️ No se pudo llenar Correo")
-                time.sleep(0.5)
+                    // Buscar en frames
+                    for (var i = 0; i < win.frames.length; i++) {
+                        if (buscarYClickGrabar(win.frames[i])) return true;
+                    }
+                } catch(e) {}
+                return false;
+            }
+            return buscarYClickGrabar(window.top);
+            """
 
-            # 22. Departamento (Columna Q)
-            if 'Departamento' in datos and pd.notna(datos['Departamento']):
-                valor = str(datos['Departamento']).strip()
-                self.log(f"  → Departamento: {valor}")
-                # MÉTODO ROBUSTO con espera extra (puede cargar dinámicamente)
-                if not self.llenar_campo_con_espera_robusta("dpto", valor, "select", timeout=15):
-                    self.log(f"    ⚠️ No se pudo seleccionar Departamento")
-                time.sleep(1.5)  # Espera para carga de Provincia
+            try:
+                resultado = self.driver.execute_script(js_grabar)
+                if resultado:
+                    self.log("  ✅ Botón GRABAR clickeado exitosamente")
+                else:
+                    self.log("  ⚠️ No se encontró el botón GRABAR")
+            except Exception as e:
+                self.log(f"  ⚠️ Error al hacer clic en GRABAR: {str(e)[:80]}")
 
-            # 23. Provincia (Columna R)
-            if 'Provincia' in datos and pd.notna(datos['Provincia']):
-                valor = str(datos['Provincia']).strip()
-                self.log(f"  → Provincia: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("prov", valor, "select", timeout=15):
-                    self.log(f"    ⚠️ No se pudo seleccionar Provincia")
-                time.sleep(1.5)  # Espera para carga de Distrito
+            # Esperar respuesta del servidor
+            time.sleep(5)
 
-            # 24. Distrito (Columna S)
-            if 'Distrito' in datos and pd.notna(datos['Distrito']):
-                valor = str(datos['Distrito']).strip()
-                self.log(f"  → Distrito: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("dist", valor, "select", timeout=15):
-                    self.log(f"    ⚠️ No se pudo seleccionar Distrito")
-                time.sleep(0.5)
-
-            # 25. Vía (Columna T)
-            if 'Via' in datos and pd.notna(datos['Via']):
-                valor = str(datos['Via']).strip()
-                self.log(f"  → Vía: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("tipvia", valor, "select", timeout=15):
-                    self.log(f"    ⚠️ No se pudo seleccionar Vía")
-                time.sleep(0.5)
-
-            # 26. Nombre de Vía (Columna U)
-            if 'Relleno de Via' in datos and pd.notna(datos['Relleno de Via']):
-                valor = str(datos['Relleno de Via']).strip()
-                self.log(f"  → Nombre Vía: {valor}")
-                # MÉTODO ROBUSTO
-                if not self.llenar_campo_con_espera_robusta("nomvia", valor, "input", timeout=15):
-                    self.log(f"    ⚠️ No se pudo llenar Nombre Vía")
-                time.sleep(0.5)
-            
-            # 27. N°/Mzn./Km. (Columna V)
-            if 'N.°' in datos and pd.notna(datos['N.°']):
-                valor = str(datos['N.°']).strip()
-                if valor != "" and valor != "-":
-                    self.log(f"  → N°/Mzn./Km.: {valor}")
-                    
-                    campo_numero = self.driver.find_element(By.NAME, "nro")
-                    campo_numero.clear()
-                    campo_numero.send_keys(valor)
-                    time.sleep(0.5)
-            
-            # 28. Dpto/Int (Columna W)
-            if 'Dpto' in datos and pd.notna(datos['Dpto']):
-                valor = str(datos['Dpto']).strip()
-                if valor != "" and valor != "-":
-                    self.log(f"  → Dpto/Int: {valor}")
-                    
-                    campo_dpto = self.driver.find_element(By.NAME, "interior")
-                    campo_dpto.clear()
-                    campo_dpto.send_keys(valor)
-                    time.sleep(0.5)
-            
-            # 29. Zona (Columna X)
-            if 'Zona' in datos and pd.notna(datos['Zona']):
-                valor = str(datos['Zona']).strip()
-                if valor != "" and valor != "-":
-                    self.log(f"  → Zona: {valor}")
-                    
-                    try:
-                        select_zona = Select(self.driver.find_element(By.NAME, "tipzona"))
-                        select_zona.select_by_visible_text(valor)
-                    except:
-                        pass
-                    
-                    time.sleep(0.5)
-            
-            # 30. GRABAR
-            self.log("  → Haciendo clic en 'Grabar'...")
-            boton_grabar = self.driver.find_element(By.XPATH, 
-                "//input[@onclick='clickbtn_validar()' and @name='btnsubmit']")
-            boton_grabar.click()
-            time.sleep(3)
-            
-            self.log("✅ Sección 3 completada - DENUNCIA GRABADA")
+            self.log("\n" + "="*70)
+            self.log("✅ SECCIÓN 3 COMPLETADA - DENUNCIA GRABADA")
+            self.log("="*70)
             return True
-            
+
         except Exception as e:
-            self.log(f"❌ Error en Sección 3: {str(e)}")
+            self.log(f"\n❌ ERROR EN SECCIÓN 3: {str(e)}")
             return False
     
     # ============================================
