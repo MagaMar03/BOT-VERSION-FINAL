@@ -3708,77 +3708,98 @@ class BotDenunciasSUNAT:
         """
         🚨 MODO NUCLEAR - Hace clic en el botón "Imprimir" de Chrome
 
-        Selector: <cr-button class="action-button" ...>Imprimir</cr-button>
+        Selector: <cr-button class="action-button" role="button">Imprimir</cr-button>
         """
         self.log("  🔍 Buscando botón 'Imprimir' de Chrome...")
 
+        # ESTRATEGIA OPTIMIZADA: Incluye búsqueda en Shadow DOM de Chrome
         js_code = """
-        function buscarBotonImprimir(ventana, nivel) {
-            if (nivel > 10) return false;
-
-            try {
-                // ESTRATEGIA 1: Buscar por tag cr-button
-                var botones = ventana.document.querySelectorAll('cr-button');
-                for (var i = 0; i < botones.length; i++) {
-                    var texto = botones[i].innerText || botones[i].textContent || '';
-                    if (texto.trim() === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                        botones[i].click();
-                        return true;
-                    }
+        // ESTRATEGIA 1: Buscar cr-button con clase action-button (MÁS ESPECÍFICO)
+        try {
+            var botones = document.querySelectorAll('cr-button.action-button');
+            for (var i = 0; i < botones.length; i++) {
+                var texto = botones[i].innerText || botones[i].textContent || '';
+                texto = texto.replace(/\\s+/g, ' ').trim();
+                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                    botones[i].click();
+                    return true;
                 }
-
-                // ESTRATEGIA 2: Buscar por clase "action-button"
-                botones = ventana.document.querySelectorAll('.action-button');
-                for (var i = 0; i < botones.length; i++) {
-                    var texto = botones[i].innerText || botones[i].textContent || '';
-                    if (texto.trim() === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                        botones[i].click();
-                        return true;
-                    }
-                }
-
-                // ESTRATEGIA 3: Buscar CUALQUIER botón con texto "Imprimir"
-                botones = ventana.document.querySelectorAll('button');
-                for (var i = 0; i < botones.length; i++) {
-                    var texto = botones[i].innerText || botones[i].textContent || '';
-                    if (texto.trim() === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                        botones[i].click();
-                        return true;
-                    }
-                }
-
-                // ESTRATEGIA 4: Buscar por input type="button"
-                botones = ventana.document.querySelectorAll('input[type="button"]');
-                for (var i = 0; i < botones.length; i++) {
-                    var valor = botones[i].value || '';
-                    if (valor.indexOf('Imprimir') !== -1) {
-                        botones[i].click();
-                        return true;
-                    }
-                }
-
-                // Buscar recursivamente en todos los iframes
-                var frames = ventana.frames;
-                for (var i = 0; i < frames.length; i++) {
-                    try {
-                        if (buscarBotonImprimir(frames[i], nivel + 1)) {
-                            return true;
-                        }
-                    } catch (e) {
-                        // Acceso denegado al frame
-                    }
-                }
-
-                return false;
-            } catch (e) {
-                return false;
             }
-        }
+        } catch(e) {}
 
-        return buscarBotonImprimir(window.top, 0);
+        // ESTRATEGIA 2: Buscar cualquier cr-button
+        try {
+            var botones = document.querySelectorAll('cr-button');
+            for (var i = 0; i < botones.length; i++) {
+                var texto = botones[i].innerText || botones[i].textContent || '';
+                texto = texto.replace(/\\s+/g, ' ').trim();
+                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                    botones[i].click();
+                    return true;
+                }
+            }
+        } catch(e) {}
+
+        // ESTRATEGIA 3: Buscar en Shadow DOM (Chrome Print Preview usa Shadow DOM)
+        try {
+            var printPreview = document.querySelector('print-preview-app');
+            if (printPreview && printPreview.shadowRoot) {
+                var sidebar = printPreview.shadowRoot.querySelector('print-preview-sidebar');
+                if (sidebar && sidebar.shadowRoot) {
+                    var botonImprimir = sidebar.shadowRoot.querySelector('cr-button.action-button');
+                    if (botonImprimir) {
+                        botonImprimir.click();
+                        return true;
+                    }
+                }
+            }
+        } catch(e) {}
+
+        // ESTRATEGIA 4: Buscar por clase action-button
+        try {
+            var botones = document.querySelectorAll('.action-button');
+            for (var i = 0; i < botones.length; i++) {
+                var texto = botones[i].innerText || botones[i].textContent || '';
+                texto = texto.replace(/\\s+/g, ' ').trim();
+                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                    botones[i].click();
+                    return true;
+                }
+            }
+        } catch(e) {}
+
+        // ESTRATEGIA 5: Buscar con role="button"
+        try {
+            var botones = document.querySelectorAll('[role="button"]');
+            for (var i = 0; i < botones.length; i++) {
+                var texto = botones[i].innerText || botones[i].textContent || '';
+                texto = texto.replace(/\\s+/g, ' ').trim();
+                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                    botones[i].click();
+                    return true;
+                }
+            }
+        } catch(e) {}
+
+        // ESTRATEGIA 6: Buscar cualquier button con texto "Imprimir"
+        try {
+            var botones = document.querySelectorAll('button');
+            for (var i = 0; i < botones.length; i++) {
+                var texto = botones[i].innerText || botones[i].textContent || '';
+                texto = texto.replace(/\\s+/g, ' ').trim();
+                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
+                    botones[i].click();
+                    return true;
+                }
+            }
+        } catch(e) {}
+
+        return false;
         """
 
         try:
+            # Timeout de 10 segundos
+            self.driver.set_script_timeout(10)
             resultado = self.driver.execute_script(js_code)
 
             if resultado:
