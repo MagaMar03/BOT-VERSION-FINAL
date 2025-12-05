@@ -1442,6 +1442,11 @@ class BotDenunciasSUNAT:
                 "textos": ["Registro", "REGISTRO"],
                 "ids": ["registro"],
                 "funciones_js": ["clickbtn_registro()"]
+            },
+            "grabar": {
+                "textos": ["Grabar", "GRABAR"],
+                "ids": ["grabar", "btnsubmit", "btnGrabar"],
+                "funciones_js": ["clickbtn_validar()"]
             }
         }
 
@@ -2811,51 +2816,16 @@ class BotDenunciasSUNAT:
             time.sleep(2)
 
             # ═══════════════════════════════════════════════════════════════
-            # HACER CLIC EN BOTÓN SIGUIENTE con JavaScript
+            # HACER CLIC EN BOTÓN SIGUIENTE - Método Universal
             # ═══════════════════════════════════════════════════════════════
-            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN SIGUIENTE (JavaScript)...")
+            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN SIGUIENTE (Método Universal)...")
 
-            js_boton = """
-            function buscarYClickBoton(win) {
-                try {
-                    // Método 1: Por función onclick
-                    var botones = win.document.querySelectorAll("input[onclick*='clickbtn_validar']");
-                    if (botones.length > 0) {
-                        botones[0].click();
-                        return true;
-                    }
-
-                    // Método 2: Por valor del botón
-                    botones = win.document.querySelectorAll("input[value*='Siguiente']");
-                    if (botones.length > 0) {
-                        botones[0].click();
-                        return true;
-                    }
-
-                    // Método 3: Ejecutar función directamente
-                    if (typeof win.clickbtn_validar === 'function') {
-                        win.clickbtn_validar();
-                        return true;
-                    }
-
-                    // Buscar en frames
-                    for (var i = 0; i < win.frames.length; i++) {
-                        if (buscarYClickBoton(win.frames[i])) return true;
-                    }
-                } catch(e) {}
-                return false;
-            }
-            return buscarYClickBoton(window.top);
-            """
-
-            try:
-                resultado = self.driver.execute_script(js_boton)
-                if resultado:
-                    self.log("  ✅ Botón SIGUIENTE clickeado con JavaScript")
-                else:
-                    self.log("  ⚠️ No se encontró el botón SIGUIENTE")
-            except Exception as e:
-                self.log(f"  ⚠️ Error: {str(e)[:80]}")
+            if not self.clic_boton_universal("siguiente"):
+                self.log("  ⚠️ No se pudo hacer clic en botón SIGUIENTE")
+                # Intentar una vez más
+                time.sleep(2)
+                if not self.clic_boton_universal("siguiente"):
+                    raise Exception("No se pudo hacer clic en botón SIGUIENTE después de 2 intentos")
 
             time.sleep(3)
 
@@ -3263,58 +3233,16 @@ class BotDenunciasSUNAT:
             time.sleep(2)
 
             # ═══════════════════════════════════════════════════════════════
-            # HACER CLIC EN BOTÓN GRABAR con JavaScript
+            # HACER CLIC EN BOTÓN GRABAR - Método Universal
             # ═══════════════════════════════════════════════════════════════
-            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN GRABAR (JavaScript)...")
+            self.log(f"\n🖱️ HACIENDO CLIC EN BOTÓN GRABAR (Método Universal)...")
 
-            js_grabar = """
-            function buscarYClickGrabar(win) {
-                try {
-                    // Método 1: Por función onclick
-                    var botones = win.document.querySelectorAll("input[onclick*='clickbtn_validar']");
-                    if (botones.length > 0) {
-                        botones[0].click();
-                        return true;
-                    }
-
-                    // Método 2: Por name='btnsubmit'
-                    botones = win.document.querySelectorAll("input[name='btnsubmit']");
-                    if (botones.length > 0) {
-                        botones[0].click();
-                        return true;
-                    }
-
-                    // Método 3: Por valor del botón
-                    botones = win.document.querySelectorAll("input[value*='Grabar']");
-                    if (botones.length > 0) {
-                        botones[0].click();
-                        return true;
-                    }
-
-                    // Método 4: Ejecutar función directamente
-                    if (typeof win.clickbtn_validar === 'function') {
-                        win.clickbtn_validar();
-                        return true;
-                    }
-
-                    // Buscar en frames
-                    for (var i = 0; i < win.frames.length; i++) {
-                        if (buscarYClickGrabar(win.frames[i])) return true;
-                    }
-                } catch(e) {}
-                return false;
-            }
-            return buscarYClickGrabar(window.top);
-            """
-
-            try:
-                resultado = self.driver.execute_script(js_grabar)
-                if resultado:
-                    self.log("  ✅ Botón GRABAR clickeado exitosamente")
-                else:
-                    self.log("  ⚠️ No se encontró el botón GRABAR")
-            except Exception as e:
-                self.log(f"  ⚠️ Error al hacer clic en GRABAR: {str(e)[:80]}")
+            if not self.clic_boton_universal("grabar"):
+                self.log("  ⚠️ No se pudo hacer clic en botón GRABAR")
+                # Intentar una vez más
+                time.sleep(2)
+                if not self.clic_boton_universal("grabar"):
+                    raise Exception("No se pudo hacer clic en botón GRABAR después de 2 intentos")
 
             # Esperar respuesta del servidor
             time.sleep(5)
