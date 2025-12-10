@@ -3680,6 +3680,8 @@ class BotDenunciasSUNAT:
         """
 
         try:
+            # Configurar timeout para evitar esperas largas
+            self.driver.set_script_timeout(60)
             resultado = self.driver.execute_script(js_code)
 
             if resultado:
