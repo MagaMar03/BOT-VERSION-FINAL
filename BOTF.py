@@ -3700,12 +3700,56 @@ class BotDenunciasSUNAT:
         🚨 MODO NUCLEAR - Hace clic en el botón "Imprimir" de Chrome
 
         Selector: <cr-button class="action-button" role="button">Imprimir</cr-button>
+        Nota: Este botón está dentro de Shadow DOM anidado en chrome://print/
         """
-        self.log("  🔍 Buscando botón 'Imprimir' de Chrome...")
+        self.log("  🔍 Buscando botón 'Imprimir' de Chrome en Shadow DOM...")
 
-        # ESTRATEGIA OPTIMIZADA: Incluye búsqueda en Shadow DOM de Chrome
+        # ESTRATEGIA NUCLEAR: Navegar por Shadow DOM anidado profundo
         js_code = """
-        // ESTRATEGIA 1: Buscar cr-button con clase action-button (MÁS ESPECÍFICO)
+        // ESTRATEGIA 1: Shadow DOM anidado completo (chrome://print/)
+        try {
+            var printPreview = document.querySelector('print-preview-app');
+            if (printPreview && printPreview.shadowRoot) {
+                var sidebar = printPreview.shadowRoot.querySelector('print-preview-sidebar');
+                if (sidebar && sidebar.shadowRoot) {
+                    // Buscar en button-strip (3er nivel de Shadow DOM)
+                    var buttonStrip = sidebar.shadowRoot.querySelector('print-preview-button-strip');
+                    if (buttonStrip && buttonStrip.shadowRoot) {
+                        var botonImprimir = buttonStrip.shadowRoot.querySelector('cr-button.action-button');
+                        if (botonImprimir) {
+                            botonImprimir.click();
+                            return true;
+                        }
+                    }
+
+                    // Fallback: buscar directamente en sidebar
+                    var botonImprimir = sidebar.shadowRoot.querySelector('cr-button.action-button');
+                    if (botonImprimir) {
+                        botonImprimir.click();
+                        return true;
+                    }
+
+                    // Fallback: buscar cualquier cr-button en sidebar
+                    var botones = sidebar.shadowRoot.querySelectorAll('cr-button');
+                    for (var i = 0; i < botones.length; i++) {
+                        var texto = botones[i].innerText || botones[i].textContent || '';
+                        if (texto && texto.trim().indexOf('Imprimir') !== -1) {
+                            botones[i].click();
+                            return true;
+                        }
+                    }
+                }
+
+                // Fallback: buscar directamente en print-preview-app
+                var botonImprimir = printPreview.shadowRoot.querySelector('cr-button.action-button');
+                if (botonImprimir) {
+                    botonImprimir.click();
+                    return true;
+                }
+            }
+        } catch(e) {}
+
+        // ESTRATEGIA 2: Buscar cr-button.action-button en documento principal
         try {
             var botones = document.querySelectorAll('cr-button.action-button');
             for (var i = 0; i < botones.length; i++) {
@@ -3718,7 +3762,7 @@ class BotDenunciasSUNAT:
             }
         } catch(e) {}
 
-        // ESTRATEGIA 2: Buscar cualquier cr-button
+        // ESTRATEGIA 3: Buscar cualquier cr-button
         try {
             var botones = document.querySelectorAll('cr-button');
             for (var i = 0; i < botones.length; i++) {
@@ -3727,21 +3771,6 @@ class BotDenunciasSUNAT:
                 if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
                     botones[i].click();
                     return true;
-                }
-            }
-        } catch(e) {}
-
-        // ESTRATEGIA 3: Buscar en Shadow DOM (Chrome Print Preview usa Shadow DOM)
-        try {
-            var printPreview = document.querySelector('print-preview-app');
-            if (printPreview && printPreview.shadowRoot) {
-                var sidebar = printPreview.shadowRoot.querySelector('print-preview-sidebar');
-                if (sidebar && sidebar.shadowRoot) {
-                    var botonImprimir = sidebar.shadowRoot.querySelector('cr-button.action-button');
-                    if (botonImprimir) {
-                        botonImprimir.click();
-                        return true;
-                    }
                 }
             }
         } catch(e) {}
@@ -3772,7 +3801,7 @@ class BotDenunciasSUNAT:
             }
         } catch(e) {}
 
-        // ESTRATEGIA 6: Buscar cualquier button con texto "Imprimir"
+        // ESTRATEGIA 6: Buscar cualquier button
         try {
             var botones = document.querySelectorAll('button');
             for (var i = 0; i < botones.length; i++) {
@@ -3789,8 +3818,11 @@ class BotDenunciasSUNAT:
         """
 
         try:
-            # Timeout de 10 segundos
-            self.driver.set_script_timeout(10)
+            # Esperar a que se cargue completamente la ventana de impresión
+            time.sleep(3)
+
+            # Timeout de 15 segundos
+            self.driver.set_script_timeout(15)
             resultado = self.driver.execute_script(js_code)
 
             if resultado:
