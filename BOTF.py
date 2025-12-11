@@ -3950,13 +3950,17 @@ class BotDenunciasSUNAT:
 
     def guardar_pdf_chrome(self, ruta_guardado, nombre_archivo):
         """
-        🚨 MODO NUCLEAR - Guarda el PDF usando las opciones de Chrome
+        🚨🚨🚨 MEGA NUCLEAR - 4 NIVELES PARA GUARDAR PDF 🚨🚨🚨
 
-        Maneja la ventana de guardado de Chrome y guarda el archivo
-        en la ruta especificada con el nombre indicado.
+        Guarda el PDF en la ruta especificada SÍ O SÍ usando:
+        NIVEL 1: pyautogui - Clipboard + Ctrl+L + Ctrl+V + Enter
+        NIVEL 2: pyautogui - Escritura directa de ruta
+        NIVEL 3: Selenium SendKeys
+        NIVEL 4: Verificación y reintentos
         """
-        self.log(f"  💾 Guardando como: {nombre_archivo}")
-        self.log(f"  📂 En ruta: {ruta_guardado}")
+        self.log(f"  🚨🚨🚨 INICIANDO MODO MEGA NUCLEAR - GUARDAR PDF 🚨🚨🚨")
+        self.log(f"  💾 Archivo: {nombre_archivo}")
+        self.log(f"  📂 Ruta: {ruta_guardado}")
 
         try:
             # Crear la ruta completa
@@ -3967,46 +3971,169 @@ class BotDenunciasSUNAT:
                 os.makedirs(ruta_guardado)
                 self.log(f"  ✅ Directorio creado: {ruta_guardado}")
 
-            # MÉTODO 1: Usar pyautogui para interactuar con la ventana de guardado
+            # Esperar a que aparezca la ventana de guardado
+            time.sleep(2)
+
+            # ═══════════════════════════════════════════════════════════════
+            # NIVEL 1: CLIPBOARD + CTRL+L + CTRL+V + ENTER
+            # ═══════════════════════════════════════════════════════════════
+            self.log("  🔥 NIVEL 1: Clipboard + Atajos de teclado...")
+
             try:
                 import pyautogui
                 import pyperclip
 
-                time.sleep(2)
-
                 # Copiar la ruta completa al portapapeles
                 pyperclip.copy(ruta_completa)
+                self.log(f"  → Ruta copiada al portapapeles")
+                time.sleep(0.5)
 
-                # Presionar Ctrl+S para abrir guardar (por si acaso)
-                pyautogui.hotkey('ctrl', 's')
-                time.sleep(1)
+                # Ctrl+L para ir al campo de ubicación/ruta
+                pyautogui.hotkey('ctrl', 'l')
+                self.log(f"  → Ctrl+L presionado")
+                time.sleep(0.5)
 
-                # Pegar la ruta completa en el campo de nombre
+                # Ctrl+V para pegar la ruta completa
                 pyautogui.hotkey('ctrl', 'v')
-                time.sleep(1)
+                self.log(f"  → Ctrl+V presionado (ruta pegada)")
+                time.sleep(0.5)
 
-                # Presionar Enter para guardar
+                # Enter para guardar
                 pyautogui.press('enter')
+                self.log(f"  → Enter presionado")
                 time.sleep(2)
 
                 # Verificar si el archivo se guardó
                 if os.path.exists(ruta_completa):
-                    self.log(f"  ✅ Archivo guardado exitosamente: {nombre_archivo}")
+                    self.log(f"  ✅ NIVEL 1 EXITOSO: Archivo guardado")
                     return True
                 else:
-                    self.log(f"  ⚠️ Archivo no encontrado después de guardar")
+                    self.log(f"  ⚠️ Nivel 1: Archivo no encontrado, continuando...")
+
+            except ImportError:
+                self.log(f"  ⚠️ pyautogui/pyperclip no disponibles, continuando al Nivel 2...")
+            except Exception as e:
+                self.log(f"  ⚠️ Nivel 1 error: {str(e)[:100]}, continuando...")
+
+            # ═══════════════════════════════════════════════════════════════
+            # NIVEL 2: ESCRITURA DIRECTA CON PYAUTOGUI
+            # ═══════════════════════════════════════════════════════════════
+            self.log("  🎯 NIVEL 2: Escritura directa de ruta...")
+
+            try:
+                import pyautogui
+
+                time.sleep(1)
+
+                # Presionar Ctrl+A para seleccionar todo
+                pyautogui.hotkey('ctrl', 'a')
+                time.sleep(0.3)
+
+                # Escribir la ruta completa caracter por caracter
+                pyautogui.write(ruta_completa, interval=0.05)
+                self.log(f"  → Ruta escrita directamente")
+                time.sleep(0.5)
+
+                # Enter para guardar
+                pyautogui.press('enter')
+                self.log(f"  → Enter presionado")
+                time.sleep(2)
+
+                # Verificar si el archivo se guardó
+                if os.path.exists(ruta_completa):
+                    self.log(f"  ✅ NIVEL 2 EXITOSO: Archivo guardado")
+                    return True
+                else:
+                    self.log(f"  ⚠️ Nivel 2: Archivo no encontrado, continuando...")
 
             except Exception as e:
-                self.log(f"  ⚠️ Error con pyautogui: {str(e)[:100]}")
+                self.log(f"  ⚠️ Nivel 2 error: {str(e)[:100]}, continuando...")
 
-            # MÉTODO 2: Configurar Chrome para descargar automáticamente
-            # (esto debería configurarse al iniciar el driver)
-            self.log(f"  ℹ️ Asegúrate de tener configurado Chrome para guardar automáticamente")
+            # ═══════════════════════════════════════════════════════════════
+            # NIVEL 3: SELENIUM SENDKEYS
+            # ═══════════════════════════════════════════════════════════════
+            self.log("  ⌨️ NIVEL 3: Selenium SendKeys...")
+
+            try:
+                from selenium.webdriver.common.keys import Keys
+                from selenium.webdriver.common.action_chains import ActionChains
+
+                time.sleep(1)
+
+                actions = ActionChains(self.driver)
+
+                # Enviar la ruta con ActionChains
+                actions.send_keys(ruta_completa).perform()
+                self.log(f"  → Ruta enviada con ActionChains")
+                time.sleep(0.5)
+
+                # Enter
+                actions.send_keys(Keys.RETURN).perform()
+                self.log(f"  → Enter presionado")
+                time.sleep(2)
+
+                # Verificar si el archivo se guardó
+                if os.path.exists(ruta_completa):
+                    self.log(f"  ✅ NIVEL 3 EXITOSO: Archivo guardado")
+                    return True
+                else:
+                    self.log(f"  ⚠️ Nivel 3: Archivo no encontrado, continuando...")
+
+            except Exception as e:
+                self.log(f"  ⚠️ Nivel 3 error: {str(e)[:100]}, continuando...")
+
+            # ═══════════════════════════════════════════════════════════════
+            # NIVEL 4: VERIFICACIÓN Y REINTENTOS
+            # ═══════════════════════════════════════════════════════════════
+            self.log("  🔍 NIVEL 4: Verificación y búsqueda del archivo...")
+
+            try:
+                import pyautogui
+
+                # Reintentar con método más agresivo
+                self.log("  → Reintento agresivo: múltiples Enter...")
+
+                for intento in range(3):
+                    time.sleep(1)
+                    pyautogui.press('enter')
+                    time.sleep(2)
+
+                    if os.path.exists(ruta_completa):
+                        self.log(f"  ✅ NIVEL 4 EXITOSO: Archivo guardado en intento {intento + 1}")
+                        return True
+
+                # Buscar el archivo en ubicaciones alternativas
+                self.log("  → Buscando archivo en Downloads...")
+
+                # Buscar en carpeta de descargas por defecto
+                import os
+                downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+                archivo_en_downloads = os.path.join(downloads_path, nombre_archivo)
+
+                if os.path.exists(archivo_en_downloads):
+                    self.log(f"  ⚠️ Archivo encontrado en Downloads, moviéndolo...")
+
+                    # Mover archivo a la ubicación correcta
+                    import shutil
+                    shutil.move(archivo_en_downloads, ruta_completa)
+
+                    if os.path.exists(ruta_completa):
+                        self.log(f"  ✅ NIVEL 4 EXITOSO: Archivo movido desde Downloads")
+                        return True
+
+                self.log(f"  ❌ NIVEL 4: Archivo no encontrado en ninguna ubicación")
+
+            except Exception as e:
+                self.log(f"  ❌ NIVEL 4 error: {str(e)[:100]}")
+
+            # Si todo falló
+            self.log("  ❌❌❌ MEGA NUCLEAR FALLÓ - Archivo no guardado después de 4 niveles")
+            self.log("  ℹ️ RECOMENDACIÓN: Verifica que pyautogui esté instalado y la ventana esté visible")
 
             return False
 
         except Exception as e:
-            self.log(f"  ❌ Error guardando PDF: {str(e)[:100]}")
+            self.log(f"  ❌ Error general guardando PDF: {str(e)[:100]}")
             return False
 
     # ============================================
