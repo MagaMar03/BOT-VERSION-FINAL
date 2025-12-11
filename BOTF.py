@@ -3697,144 +3697,256 @@ class BotDenunciasSUNAT:
 
     def clic_boton_imprimir_chrome(self):
         """
-        🚨 MODO NUCLEAR - Hace clic en el botón "Imprimir" de Chrome
+        🚨🚨🚨 MEGA NUCLEAR - 4 NIVELES DE ATAQUE 🚨🚨🚨
 
-        Selector: <cr-button class="action-button" role="button">Imprimir</cr-button>
-        Nota: Este botón está dentro de Shadow DOM anidado en chrome://print/
+        Encuentra y hace clic en el botón "Imprimir" SÍ O SÍ usando:
+        NIVEL 1: JavaScript ultra agresivo con inspección profunda
+        NIVEL 2: pyautogui - Clic por coordenadas visuales
+        NIVEL 3: Atajos de teclado (Enter)
+        NIVEL 4: Debug completo si todo falla
         """
-        self.log("  🔍 Buscando botón 'Imprimir' de Chrome en Shadow DOM...")
+        self.log("  🚨🚨🚨 INICIANDO MODO MEGA NUCLEAR - BOTÓN IMPRIMIR 🚨🚨🚨")
 
-        # ESTRATEGIA NUCLEAR: Navegar por Shadow DOM anidado profundo
-        js_code = """
-        // ESTRATEGIA 1: Shadow DOM anidado completo (chrome://print/)
+        # Esperar a que se cargue la ventana de impresión
+        time.sleep(3)
+
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 1: JAVASCRIPT ULTRA AGRESIVO
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  🔥 NIVEL 1: JavaScript Ultra Agresivo con inspección profunda...")
+
+        js_ultra_agresivo = """
+        // Función para inspeccionar RECURSIVAMENTE todo el Shadow DOM
+        function inspeccionarShadowDOM(elemento, nivel, maxNivel) {
+            if (nivel > maxNivel) return null;
+
+            var resultados = [];
+
+            try {
+                // Buscar en el elemento actual
+                if (elemento.shadowRoot) {
+                    // Buscar cr-button.action-button
+                    var botones = elemento.shadowRoot.querySelectorAll('cr-button.action-button, cr-button, .action-button, button, [role="button"]');
+                    for (var i = 0; i < botones.length; i++) {
+                        var texto = botones[i].innerText || botones[i].textContent || '';
+                        if (texto && texto.trim().toUpperCase().indexOf('IMPRIMIR') !== -1) {
+                            resultados.push(botones[i]);
+                        }
+                    }
+
+                    // Buscar recursivamente en hijos
+                    var hijos = elemento.shadowRoot.querySelectorAll('*');
+                    for (var i = 0; i < hijos.length; i++) {
+                        var subResultados = inspeccionarShadowDOM(hijos[i], nivel + 1, maxNivel);
+                        if (subResultados) {
+                            resultados = resultados.concat(subResultados);
+                        }
+                    }
+                }
+
+                return resultados.length > 0 ? resultados : null;
+            } catch(e) {
+                return null;
+            }
+        }
+
+        // ESTRATEGIA 1: Inspección completa de print-preview-app
+        try {
+            var printPreview = document.querySelector('print-preview-app');
+            if (printPreview) {
+                var botones = inspeccionarShadowDOM(printPreview, 0, 5);
+                if (botones && botones.length > 0) {
+                    botones[0].click();
+                    return {nivel: 1, estrategia: 'Inspección completa Shadow DOM', exito: true};
+                }
+            }
+        } catch(e) {}
+
+        // ESTRATEGIA 2: Navegación específica por niveles conocidos
         try {
             var printPreview = document.querySelector('print-preview-app');
             if (printPreview && printPreview.shadowRoot) {
                 var sidebar = printPreview.shadowRoot.querySelector('print-preview-sidebar');
                 if (sidebar && sidebar.shadowRoot) {
-                    // Buscar en button-strip (3er nivel de Shadow DOM)
                     var buttonStrip = sidebar.shadowRoot.querySelector('print-preview-button-strip');
                     if (buttonStrip && buttonStrip.shadowRoot) {
-                        var botonImprimir = buttonStrip.shadowRoot.querySelector('cr-button.action-button');
-                        if (botonImprimir) {
-                            botonImprimir.click();
-                            return true;
+                        var boton = buttonStrip.shadowRoot.querySelector('cr-button.action-button');
+                        if (boton) {
+                            boton.click();
+                            return {nivel: 1, estrategia: 'Navegación Shadow DOM específica', exito: true};
                         }
                     }
 
-                    // Fallback: buscar directamente en sidebar
-                    var botonImprimir = sidebar.shadowRoot.querySelector('cr-button.action-button');
-                    if (botonImprimir) {
-                        botonImprimir.click();
-                        return true;
-                    }
-
-                    // Fallback: buscar cualquier cr-button en sidebar
-                    var botones = sidebar.shadowRoot.querySelectorAll('cr-button');
+                    // Buscar en sidebar directamente
+                    var botones = sidebar.shadowRoot.querySelectorAll('cr-button, button, .action-button');
                     for (var i = 0; i < botones.length; i++) {
                         var texto = botones[i].innerText || botones[i].textContent || '';
-                        if (texto && texto.trim().indexOf('Imprimir') !== -1) {
+                        if (texto && texto.trim().toUpperCase().indexOf('IMPRIMIR') !== -1) {
                             botones[i].click();
-                            return true;
+                            return {nivel: 1, estrategia: 'Búsqueda en sidebar', exito: true};
                         }
                     }
                 }
-
-                // Fallback: buscar directamente en print-preview-app
-                var botonImprimir = printPreview.shadowRoot.querySelector('cr-button.action-button');
-                if (botonImprimir) {
-                    botonImprimir.click();
-                    return true;
-                }
             }
         } catch(e) {}
 
-        // ESTRATEGIA 2: Buscar cr-button.action-button en documento principal
+        // ESTRATEGIA 3: Buscar en TODOS los elementos con shadowRoot
         try {
-            var botones = document.querySelectorAll('cr-button.action-button');
-            for (var i = 0; i < botones.length; i++) {
-                var texto = botones[i].innerText || botones[i].textContent || '';
-                texto = texto.replace(/\\s+/g, ' ').trim();
-                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                    botones[i].click();
-                    return true;
+            var todosLosElementos = document.querySelectorAll('*');
+            for (var i = 0; i < todosLosElementos.length; i++) {
+                if (todosLosElementos[i].shadowRoot) {
+                    var botones = todosLosElementos[i].shadowRoot.querySelectorAll('cr-button, button, .action-button, [role="button"]');
+                    for (var j = 0; j < botones.length; j++) {
+                        var texto = botones[j].innerText || botones[j].textContent || '';
+                        if (texto && texto.trim().toUpperCase().indexOf('IMPRIMIR') !== -1) {
+                            botones[j].click();
+                            return {nivel: 1, estrategia: 'Búsqueda global Shadow DOM', exito: true};
+                        }
+                    }
                 }
             }
         } catch(e) {}
 
-        // ESTRATEGIA 3: Buscar cualquier cr-button
-        try {
-            var botones = document.querySelectorAll('cr-button');
-            for (var i = 0; i < botones.length; i++) {
-                var texto = botones[i].innerText || botones[i].textContent || '';
-                texto = texto.replace(/\\s+/g, ' ').trim();
-                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                    botones[i].click();
-                    return true;
-                }
-            }
-        } catch(e) {}
-
-        // ESTRATEGIA 4: Buscar por clase action-button
-        try {
-            var botones = document.querySelectorAll('.action-button');
-            for (var i = 0; i < botones.length; i++) {
-                var texto = botones[i].innerText || botones[i].textContent || '';
-                texto = texto.replace(/\\s+/g, ' ').trim();
-                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                    botones[i].click();
-                    return true;
-                }
-            }
-        } catch(e) {}
-
-        // ESTRATEGIA 5: Buscar con role="button"
-        try {
-            var botones = document.querySelectorAll('[role="button"]');
-            for (var i = 0; i < botones.length; i++) {
-                var texto = botones[i].innerText || botones[i].textContent || '';
-                texto = texto.replace(/\\s+/g, ' ').trim();
-                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                    botones[i].click();
-                    return true;
-                }
-            }
-        } catch(e) {}
-
-        // ESTRATEGIA 6: Buscar cualquier button
-        try {
-            var botones = document.querySelectorAll('button');
-            for (var i = 0; i < botones.length; i++) {
-                var texto = botones[i].innerText || botones[i].textContent || '';
-                texto = texto.replace(/\\s+/g, ' ').trim();
-                if (texto === 'Imprimir' || texto.indexOf('Imprimir') !== -1) {
-                    botones[i].click();
-                    return true;
-                }
-            }
-        } catch(e) {}
-
-        return false;
+        return {nivel: 1, estrategia: 'Ninguna', exito: false};
         """
 
         try:
-            # Esperar a que se cargue completamente la ventana de impresión
-            time.sleep(3)
+            self.driver.set_script_timeout(20)
+            resultado_nivel1 = self.driver.execute_script(js_ultra_agresivo)
 
-            # Timeout de 15 segundos
-            self.driver.set_script_timeout(15)
-            resultado = self.driver.execute_script(js_code)
-
-            if resultado:
-                self.log(f"  ✅ Clic en botón 'Imprimir' exitoso")
+            if resultado_nivel1 and resultado_nivel1.get('exito'):
+                self.log(f"  ✅ NIVEL 1 EXITOSO: {resultado_nivel1['estrategia']}")
+                time.sleep(1)
                 return True
             else:
-                self.log(f"  ❌ No se pudo hacer clic en botón 'Imprimir'")
-                return False
+                self.log(f"  ⚠️ Nivel 1 falló, continuando al Nivel 2...")
+        except Exception as e:
+            self.log(f"  ⚠️ Nivel 1 error: {str(e)[:100]}, continuando...")
+
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 2: PYAUTOGUI - CLIC POR COORDENADAS
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  🎯 NIVEL 2: pyautogui - Buscando botón visualmente...")
+
+        try:
+            import pyautogui
+            import pyperclip
+
+            # Buscar el botón "Imprimir" en la pantalla
+            try:
+                # Esperar un poco más para asegurar que la ventana esté visible
+                time.sleep(2)
+
+                # Intentar localizar el botón por texto (si pyautogui tiene OCR)
+                # O simplemente presionar Tab + Enter para navegar
+                self.log("  → Intentando navegar con Tab + Enter...")
+
+                # Presionar Tab varias veces para llegar al botón Imprimir
+                for i in range(10):
+                    pyautogui.press('tab')
+                    time.sleep(0.1)
+
+                # Presionar Enter (debería hacer clic en el botón enfocado)
+                pyautogui.press('enter')
+                self.log("  ✅ NIVEL 2 EXITOSO: Tab + Enter ejecutado")
+                time.sleep(1)
+                return True
+
+            except Exception as e:
+                self.log(f"  ⚠️ Nivel 2 falló: {str(e)[:100]}, continuando...")
+
+        except ImportError:
+            self.log("  ⚠️ pyautogui no disponible, continuando al Nivel 3...")
+
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 3: ATAJOS DE TECLADO
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  ⌨️ NIVEL 3: Atajos de teclado - Presionando Enter...")
+
+        try:
+            from selenium.webdriver.common.keys import Keys
+            from selenium.webdriver.common.action_chains import ActionChains
+
+            # Intentar con ActionChains
+            actions = ActionChains(self.driver)
+
+            # Presionar Enter (acción por defecto en diálogo de impresión)
+            actions.send_keys(Keys.RETURN).perform()
+            self.log("  ✅ NIVEL 3 EXITOSO: Enter presionado con Selenium")
+            time.sleep(1)
+            return True
 
         except Exception as e:
-            self.log(f"  ❌ Error: {str(e)[:100]}")
-            return False
+            self.log(f"  ⚠️ Nivel 3 falló: {str(e)[:100]}, continuando...")
+
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 4: DEBUG COMPLETO
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  🔍 NIVEL 4: Debug completo - Inspeccionando estructura...")
+
+        try:
+            js_debug = """
+            function debugShadowDOM(elemento, nivel, maxNivel, ruta) {
+                if (nivel > maxNivel) return [];
+
+                var info = [];
+                ruta = ruta || 'document';
+
+                try {
+                    if (elemento.shadowRoot) {
+                        var nuevaRuta = ruta + ' → shadowRoot';
+
+                        // Listar todos los elementos
+                        var elementos = elemento.shadowRoot.querySelectorAll('*');
+                        for (var i = 0; i < elementos.length; i++) {
+                            var elem = elementos[i];
+                            var texto = elem.innerText || elem.textContent || '';
+                            var tag = elem.tagName.toLowerCase();
+                            var clases = elem.className || '';
+
+                            if (texto.length < 100) {  // Solo textos cortos
+                                info.push({
+                                    ruta: nuevaRuta,
+                                    tag: tag,
+                                    clases: clases,
+                                    texto: texto.trim().substring(0, 50)
+                                });
+                            }
+
+                            // Recursión
+                            var subInfo = debugShadowDOM(elem, nivel + 1, maxNivel, nuevaRuta + ' → ' + tag);
+                            info = info.concat(subInfo);
+                        }
+                    }
+                } catch(e) {}
+
+                return info;
+            }
+
+            var printPreview = document.querySelector('print-preview-app');
+            if (printPreview) {
+                return debugShadowDOM(printPreview, 0, 3, 'print-preview-app');
+            }
+            return [];
+            """
+
+            estructura = self.driver.execute_script(js_debug)
+
+            if estructura and len(estructura) > 0:
+                self.log(f"  📋 Estructura encontrada ({len(estructura)} elementos):")
+                for i, elem in enumerate(estructura[:20]):  # Mostrar primeros 20
+                    if 'imprimir' in elem.get('texto', '').lower() or 'action-button' in elem.get('clases', '').lower():
+                        self.log(f"     {i+1}. {elem['tag']} | {elem['clases'][:30]} | '{elem['texto'][:30]}'")
+
+                self.log("  ❌ NIVEL 4: Botón no encontrado después de inspección completa")
+            else:
+                self.log("  ❌ NIVEL 4: No se pudo inspeccionar la estructura")
+
+        except Exception as e:
+            self.log(f"  ❌ NIVEL 4 error: {str(e)[:100]}")
+
+        self.log("  ❌❌❌ MEGA NUCLEAR FALLÓ - Botón 'Imprimir' no encontrado después de 4 niveles")
+        return False
 
     def guardar_pdf_chrome(self, ruta_guardado, nombre_archivo):
         """
