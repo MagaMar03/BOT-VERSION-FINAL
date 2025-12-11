@@ -3602,98 +3602,191 @@ class BotDenunciasSUNAT:
 
     def clic_imprimir_constancia_nuclear(self):
         """
-        🚨 MODO NUCLEAR - Hace clic en el enlace "Imprimir Constancia"
+        🚨🚨🚨 MEGA NUCLEAR - 4 NIVELES PARA "IMPRIMIR CONSTANCIA" 🚨🚨🚨
 
-        Selector: <a href="#" class="lnk10" onclick="return printPage(parent.mainFrame, this)">
+        Encuentra y hace clic en el enlace "Imprimir Constancia" SÍ O SÍ usando:
+        NIVEL 1: JavaScript rápido sin recursión profunda
+        NIVEL 2: Ctrl+P (atajo de imprimir)
+        NIVEL 3: Buscar por imagen + clic
+        NIVEL 4: JavaScript con timeout corto
         """
-        self.log("  🔍 Buscando enlace 'Imprimir Constancia'...")
+        self.log("  🚨🚨🚨 MEGA NUCLEAR: Buscando 'Imprimir Constancia'...")
 
-        js_code = """
-        function buscarImprimirConstancia(ventana, nivel) {
-            if (nivel > 10) return false;
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 1: JAVASCRIPT RÁPIDO (SIN RECURSIÓN PROFUNDA)
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  🔥 NIVEL 1: JavaScript rápido...")
 
-            try {
-                // ESTRATEGIA 1: Ejecutar función printPage directamente
-                if (typeof ventana.printPage === 'function') {
-                    try {
-                        ventana.printPage(ventana.parent.mainFrame || ventana);
-                        return true;
-                    } catch(e) {}
-                }
-
-                // ESTRATEGIA 2: Buscar por onclick que contenga "printPage"
-                var enlaces = ventana.document.querySelectorAll('a[onclick*="printPage"]');
-                if (enlaces.length > 0) {
-                    enlaces[0].click();
-                    return true;
-                }
-
-                // ESTRATEGIA 3: Buscar por clase "lnk10"
-                enlaces = ventana.document.querySelectorAll('a.lnk10');
-                for (var i = 0; i < enlaces.length; i++) {
-                    var texto = enlaces[i].innerText || enlaces[i].textContent || '';
-                    if (texto.indexOf('Imprimir Constancia') !== -1 || texto.indexOf('Imprime la pagina') !== -1) {
-                        enlaces[i].click();
-                        return true;
-                    }
-                }
-
-                // ESTRATEGIA 4: Buscar por texto que contenga "Imprimir Constancia"
-                enlaces = ventana.document.querySelectorAll('a');
-                for (var i = 0; i < enlaces.length; i++) {
-                    var texto = enlaces[i].innerText || enlaces[i].textContent || '';
-                    if (texto.indexOf('Imprimir Constancia') !== -1) {
-                        enlaces[i].click();
-                        return true;
-                    }
-                }
-
-                // ESTRATEGIA 5: Buscar imagen con alt que contenga "Imprime"
-                var imagenes = ventana.document.querySelectorAll('img[alt*="Imprime"]');
-                for (var i = 0; i < imagenes.length; i++) {
-                    var enlacePadre = imagenes[i].closest('a');
-                    if (enlacePadre) {
-                        enlacePadre.click();
-                        return true;
-                    }
-                }
-
-                // Buscar recursivamente en todos los iframes
-                var frames = ventana.frames;
-                for (var i = 0; i < frames.length; i++) {
-                    try {
-                        if (buscarImprimirConstancia(frames[i], nivel + 1)) {
-                            return true;
-                        }
-                    } catch (e) {
-                        // Acceso denegado al frame
-                    }
-                }
-
-                return false;
-            } catch (e) {
-                return false;
+        js_rapido = """
+        // Buscar SOLO en window.top y primer nivel de frames (rápido)
+        try {
+            // Ejecutar printPage directamente
+            if (typeof window.printPage === 'function') {
+                window.printPage(window.parent.mainFrame || window);
+                return {nivel: 1, estrategia: 'printPage() directo', exito: true};
             }
-        }
+        } catch(e) {}
 
-        return buscarImprimirConstancia(window.top, 0);
+        try {
+            // Buscar por onclick en window.top
+            var enlaces = window.document.querySelectorAll('a[onclick*="printPage"]');
+            if (enlaces.length > 0) {
+                enlaces[0].click();
+                return {nivel: 1, estrategia: 'onclick printPage', exito: true};
+            }
+        } catch(e) {}
+
+        try {
+            // Buscar imagen de impresora
+            var imgs = window.document.querySelectorAll('img[src*="impresora"], img[alt*="Imprime"]');
+            for (var i = 0; i < imgs.length; i++) {
+                var enlace = imgs[i].closest('a');
+                if (enlace) {
+                    enlace.click();
+                    return {nivel: 1, estrategia: 'Imagen impresora', exito: true};
+                }
+            }
+        } catch(e) {}
+
+        try {
+            // Buscar en primer nivel de frames solamente
+            for (var i = 0; i < window.frames.length; i++) {
+                try {
+                    var frame = window.frames[i];
+                    if (typeof frame.printPage === 'function') {
+                        frame.printPage(frame.parent.mainFrame || frame);
+                        return {nivel: 1, estrategia: 'printPage() en frame', exito: true};
+                    }
+
+                    var enlaces = frame.document.querySelectorAll('a[onclick*="printPage"]');
+                    if (enlaces.length > 0) {
+                        enlaces[0].click();
+                        return {nivel: 1, estrategia: 'onclick en frame', exito: true};
+                    }
+                } catch(e) {}
+            }
+        } catch(e) {}
+
+        return {nivel: 1, estrategia: 'Ninguna', exito: false};
         """
 
         try:
-            # Configurar timeout para evitar esperas largas
-            self.driver.set_script_timeout(60)
-            resultado = self.driver.execute_script(js_code)
+            self.driver.set_script_timeout(10)  # Timeout corto
+            resultado_nivel1 = self.driver.execute_script(js_rapido)
 
-            if resultado:
-                self.log(f"  ✅ Clic en 'Imprimir Constancia' exitoso")
+            if resultado_nivel1 and resultado_nivel1.get('exito'):
+                self.log(f"  ✅ NIVEL 1 EXITOSO: {resultado_nivel1['estrategia']}")
                 return True
             else:
-                self.log(f"  ❌ No se pudo hacer clic en 'Imprimir Constancia'")
-                return False
+                self.log(f"  ⚠️ Nivel 1 falló, continuando al Nivel 2...")
+        except Exception as e:
+            self.log(f"  ⚠️ Nivel 1 error: {str(e)[:50]}, continuando...")
+
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 2: CTRL+P (ATAJO DE IMPRIMIR)
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  🎯 NIVEL 2: Ctrl+P (atajo de imprimir)...")
+
+        try:
+            import pyautogui
+
+            time.sleep(1)
+            pyautogui.hotkey('ctrl', 'p')
+            self.log(f"  ✅ NIVEL 2 EXITOSO: Ctrl+P presionado")
+            time.sleep(2)
+            return True
+
+        except ImportError:
+            self.log(f"  ⚠️ pyautogui no disponible, continuando...")
+        except Exception as e:
+            self.log(f"  ⚠️ Nivel 2 error: {str(e)[:50]}, continuando...")
+
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 3: SELENIUM - BUSCAR ELEMENTO Y HACER CLIC
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  ⌨️ NIVEL 3: Selenium - buscar elemento...")
+
+        try:
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+
+            # Cambiar a iframe principal
+            try:
+                self.driver.switch_to.default_content()
+                self.driver.switch_to.frame("iframeApplication")
+            except:
+                pass
+
+            # Buscar por imagen
+            try:
+                img = self.driver.find_element(By.CSS_SELECTOR, 'img[alt*="Imprime"], img[src*="impresora"]')
+                enlace = img.find_element(By.XPATH, './ancestor::a')
+                enlace.click()
+                self.log(f"  ✅ NIVEL 3 EXITOSO: Elemento encontrado y clickeado")
+                time.sleep(2)
+                return True
+            except:
+                pass
+
+            # Buscar por texto
+            try:
+                enlaces = self.driver.find_elements(By.TAG_NAME, 'a')
+                for enlace in enlaces:
+                    if 'Imprimir' in enlace.text or 'Constancia' in enlace.text:
+                        enlace.click()
+                        self.log(f"  ✅ NIVEL 3 EXITOSO: Enlace con texto encontrado")
+                        time.sleep(2)
+                        return True
+            except:
+                pass
+
+            self.log(f"  ⚠️ Nivel 3 falló, continuando...")
 
         except Exception as e:
-            self.log(f"  ❌ Error: {str(e)[:100]}")
-            return False
+            self.log(f"  ⚠️ Nivel 3 error: {str(e)[:50]}, continuando...")
+
+        # ═══════════════════════════════════════════════════════════════
+        # NIVEL 4: JAVASCRIPT CON TIMEOUT MUY CORTO
+        # ═══════════════════════════════════════════════════════════════
+        self.log("  🔍 NIVEL 4: JavaScript simple...")
+
+        try:
+            js_simple = """
+            try {
+                // Ejecutar window.print() directamente
+                window.print();
+                return true;
+            } catch(e) {}
+
+            try {
+                // Buscar CUALQUIER enlace con "Imprimir"
+                var todos = document.querySelectorAll('a');
+                for (var i = 0; i < todos.length; i++) {
+                    var txt = todos[i].innerText || '';
+                    if (txt.indexOf('Imprimir') !== -1) {
+                        todos[i].click();
+                        return true;
+                    }
+                }
+            } catch(e) {}
+
+            return false;
+            """
+
+            self.driver.set_script_timeout(5)
+            resultado = self.driver.execute_script(js_simple)
+
+            if resultado:
+                self.log(f"  ✅ NIVEL 4 EXITOSO: window.print() o enlace encontrado")
+                time.sleep(2)
+                return True
+
+        except Exception as e:
+            self.log(f"  ⚠️ Nivel 4 error: {str(e)[:50]}")
+
+        self.log("  ❌❌❌ MEGA NUCLEAR FALLÓ - 'Imprimir Constancia' no encontrado")
+        return False
 
     def clic_boton_imprimir_chrome(self):
         """
